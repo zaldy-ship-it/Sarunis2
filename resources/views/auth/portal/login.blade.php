@@ -19,7 +19,7 @@
         </div>
     @endif
 
-    <form class="portal-auth-form" method="POST" action="{{ url('/login') }}" data-portal-login>
+    <form class="portal-auth-form" method="POST" action="/login" data-portal-login>
         @csrf
 
         <div class="mb-3">
