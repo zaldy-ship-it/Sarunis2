@@ -11,6 +11,11 @@
     $recapExportCsvUrl = $recapExportCsvUrl ?? $recapExportBaseUrl . '/export/csv';
     $recapExportPdfUrl = $recapExportPdfUrl ?? $recapExportBaseUrl . '/export/pdf';
     $recapPrintUrl = $recapPrintUrl ?? $recapExportBaseUrl . '/print';
+    $showExportActions = $showExportActions ?? true;
+    $showAttendanceSummary = $showAttendanceSummary ?? true;
+    $showAttendanceRecapTable = $showAttendanceRecapTable ?? true;
+    $showAttendanceDetailTable = $showAttendanceDetailTable ?? true;
+    $attendanceDetailTitle = $attendanceDetailTitle ?? 'Detail Catatan Siswa';
 @endphp
 
 <section class="portal-panel portal-teacher-recap" id="{{ $recapSectionId }}" data-dashboard-section data-section-label="{{ $recapSectionLabel }}">
@@ -19,12 +24,14 @@
             <h2>{{ $recapTitle }}</h2>
             <p>{{ $recapDescription }} Data terakhir {{ $attendanceSummary['latest_date'] }} dengan persentase hadir {{ $attendanceSummary['present_rate'] }}%.</p>
         </div>
-        <div class="portal-report-actions">
-            <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapExportXlsUrl) }}">Excel Mapel</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapExportCsvUrl) }}">CSV Mapel</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapExportPdfUrl) }}" target="_blank" rel="noopener">PDF Mapel</a>
-            <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapPrintUrl) }}" target="_blank" rel="noopener">Print</a>
-        </div>
+        @if ($showExportActions)
+            <div class="portal-report-actions">
+                <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapExportXlsUrl) }}">Excel Mapel</a>
+                <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapExportCsvUrl) }}">CSV Mapel</a>
+                <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapExportPdfUrl) }}" target="_blank" rel="noopener">PDF Mapel</a>
+                <a class="btn btn-outline-primary btn-sm" href="{{ $withExportQuery($recapPrintUrl) }}" target="_blank" rel="noopener">Print</a>
+            </div>
+        @endif
     </div>
 
     <form class="portal-report-card portal-report-card--wide" method="GET" action="{{ url()->current() }}">
@@ -66,30 +73,33 @@
         </div>
     </form>
 
-    <div class="portal-teacher-recap__summary">
-        <article>
-            <span>Total Catatan</span>
-            <strong>{{ $attendanceSummary['total'] }}</strong>
-        </article>
-        <article>
-            <span>Hadir</span>
-            <strong>{{ $attendanceSummary['hadir'] }}</strong>
-        </article>
-        <article>
-            <span>Izin</span>
-            <strong>{{ $attendanceSummary['izin'] }}</strong>
-        </article>
-        <article>
-            <span>Sakit</span>
-            <strong>{{ $attendanceSummary['sakit'] }}</strong>
-        </article>
-        <article>
-            <span>Alpha</span>
-            <strong>{{ $attendanceSummary['alpha'] }}</strong>
-        </article>
-    </div>
+    @if ($showAttendanceSummary)
+        <div class="portal-teacher-recap__summary">
+            <article>
+                <span>Total Catatan</span>
+                <strong>{{ $attendanceSummary['total'] }}</strong>
+            </article>
+            <article>
+                <span>Hadir</span>
+                <strong>{{ $attendanceSummary['hadir'] }}</strong>
+            </article>
+            <article>
+                <span>Izin</span>
+                <strong>{{ $attendanceSummary['izin'] }}</strong>
+            </article>
+            <article>
+                <span>Sakit</span>
+                <strong>{{ $attendanceSummary['sakit'] }}</strong>
+            </article>
+            <article>
+                <span>Alpha</span>
+                <strong>{{ $attendanceSummary['alpha'] }}</strong>
+            </article>
+        </div>
+    @endif
 
-    <div class="portal-report-card portal-report-card--wide">
+    @if ($showAttendanceRecapTable)
+        <div class="portal-report-card portal-report-card--wide">
         <div class="portal-report-card__header">
             <h3>Rekap Per Mapel dan Kelas</h3>
             <span>{{ count($attendanceRecapRows) }} jadwal</span>
@@ -131,11 +141,13 @@
                 </tbody>
             </table>
         </div>
-    </div>
+        </div>
+    @endif
 
-    <div class="portal-report-card portal-report-card--wide">
+    @if ($showAttendanceDetailTable)
+        <div class="portal-report-card portal-report-card--wide">
         <div class="portal-report-card__header">
-            <h3>Detail Catatan Siswa</h3>
+            <h3>{{ $attendanceDetailTitle }}</h3>
             <span>{{ count($attendanceDetailRows) }} baris</span>
         </div>
 
@@ -169,5 +181,6 @@
                 </tbody>
             </table>
         </div>
-    </div>
+        </div>
+    @endif
 </section>

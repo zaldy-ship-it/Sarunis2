@@ -1119,9 +1119,23 @@ class PortalDashboardController extends Controller
         $data = $this->buildTeacherDashboard($request, $this->teacherPayload());
 
         return view('dashboard.teacher-attendance', array_merge($data, [
-            'pageTitle' => 'Isi Absensi Mapel',
-            'menuSections' => $this->menuForPortalPage('guru-mapel', 'Absensi Siswa'),
+            'pageTitle' => 'Tambah Absen',
+            'menuSections' => $this->menuForPortalPage('guru-mapel', 'Tambah Absen'),
         ]));
+    }
+
+    public function teacherAttendanceListPage(Request $request): Response
+    {
+        $data = $this->buildTeacherDashboard($request, $this->teacherPayload());
+
+        return response()->view('dashboard.teacher-attendance-list', array_merge($data, [
+            'pageTitle' => 'Daftar Absen',
+            'menuSections' => $this->menuForPortalPage('guru-mapel', 'Daftar Absen'),
+        ]))->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function teacherClassAttendancePage(Request $request): View
@@ -1237,8 +1251,8 @@ class PortalDashboardController extends Controller
         $data = $this->buildTeacherDashboard($request, $this->teacherPayload());
 
         return response()->view('dashboard.teacher-attendance-recap', array_merge($data, [
-            'pageTitle' => 'Rekap Absensi Mapel',
-            'menuSections' => $this->menuForPortalPage('guru-mapel', 'Rekap Absensi'),
+            'pageTitle' => 'Rekap Absen',
+            'menuSections' => $this->menuForPortalPage('guru-mapel', 'Rekap Absen'),
         ]))->withHeaders([
             'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
             'Pragma' => 'no-cache',
@@ -1821,6 +1835,7 @@ class PortalDashboardController extends Controller
                 'badge' => $this->formattedTimestamp(),
                 'asset' => 'school',
             ],
+            'todayLabel' => $this->todayDateLabel(),
             'summary' => [
                 ['label' => 'Kelas Diajar', 'value' => $schedules->pluck('school_class_id')->filter()->unique()->count()],
                 ['label' => 'Jadwal Aktif', 'value' => $schedules->count()],
@@ -2357,12 +2372,13 @@ class PortalDashboardController extends Controller
     {
         $user = $this->dashboardUser($request);
         $isAdmin = $user->hasRole('admin');
+        $student = $isAdmin ? null : $this->studentFromRequest($request)->loadMissing('schoolClass');
         $schedule = $isAdmin
             ? $this->teachingAssignmentService->schedules()
-            : $this->teachingAssignmentService->scheduleForStudent($this->studentFromRequest($request));
+            : $this->teachingAssignmentService->scheduleForStudent($student);
         $attendances = $isAdmin
             ? $this->classAttendanceService->recap()
-            : $this->classAttendanceService->recapForStudent($this->studentFromRequest($request));
+            : $this->classAttendanceService->recapForStudent($student);
 
         $scheduleRows = $this->todaySchedules($schedule);
         $attendanceRows = $attendances->take(3)->map(function (ClassAttendance $attendance): array {
@@ -2380,6 +2396,14 @@ class PortalDashboardController extends Controller
             ['label' => 'Sakit/Alpha', 'value' => $attendances->whereIn('status', [AttendanceStatus::SAKIT->value, AttendanceStatus::ALPHA->value])->count(), 'meta' => 'Perlu diperhatikan'],
         ];
 
+        if (!$isAdmin) {
+            array_unshift($summary, [
+                'label' => 'Kelas',
+                'value' => $student?->schoolClass?->name ?? '-',
+                'meta' => 'Data kelas siswa',
+            ]);
+        }
+
         return $this->baseDashboardData($user, 'siswa', $payload, [
             'hero' => [
                 'title' => 'Hai Siswa!',
@@ -2388,6 +2412,8 @@ class PortalDashboardController extends Controller
                 'asset' => 'school',
             ],
             'summary' => $summary,
+            'todayLabel' => $this->todayDateLabel(),
+            'studentClassName' => $student?->schoolClass?->name,
             'scheduleRows' => $scheduleRows->values()->map(fn(TeachingAssignment $assignment, int $index): array => [
                 'lesson_period' => $index + 1,
                 'time' => $this->timeRange($assignment->start_time, $assignment->end_time),
@@ -2490,8 +2516,14 @@ class PortalDashboardController extends Controller
                     'items' => [
                         ['label' => 'Beranda', 'icon' => 'home', 'href' => '#beranda', 'active' => true],
                         ['label' => 'Jadwal Mengajar', 'icon' => 'schedule', 'href' => url('/guru-mapel/jadwal-mengajar'), 'active' => false],
-                        ['label' => 'Absensi Siswa', 'icon' => 'attendance', 'href' => url('/guru-mapel/absensi-siswa'), 'active' => false],
-                        ['label' => 'Rekap Absensi', 'icon' => 'recap', 'href' => url('/guru-mapel/rekap-absensi'), 'active' => false],
+                    ],
+                ],
+                [
+                    'title' => 'Absensi Siswa',
+                    'items' => [
+                        ['label' => 'Tambah Absen', 'icon' => 'attendance', 'href' => url('/guru-mapel/absensi-siswa/tambah'), 'active' => false],
+                        ['label' => 'Daftar Absen', 'icon' => 'recap', 'href' => url('/guru-mapel/absensi-siswa/daftar'), 'active' => false],
+                        ['label' => 'Rekap Absen', 'icon' => 'chart', 'href' => url('/guru-mapel/rekap-absensi'), 'active' => false],
                     ],
                 ],
                 [
@@ -2747,6 +2779,20 @@ class PortalDashboardController extends Controller
         return $this->shortMonthName($date->month) . ' ' . $date->year;
     }
 
+    protected function todayDateLabel(): string
+    {
+        $today = CarbonImmutable::now();
+        $dayNames = config('schedule.day_names', []);
+
+        return sprintf(
+            '%s, %s %s %s',
+            $dayNames[$this->scheduleDayFromIso($today->dayOfWeekIso)] ?? $today->format('l'),
+            $today->day,
+            $this->shortMonthName($today->month),
+            $today->year,
+        );
+    }
+
     protected function shortMonthName(int $month): string
     {
         $monthNames = [
@@ -2805,13 +2851,9 @@ class PortalDashboardController extends Controller
     protected function todaySchedules(Collection $schedules): Collection
     {
         $todayNumber = $this->currentScheduleDay();
-        $todaySchedules = $schedules
+        return $schedules
             ->filter(static fn(TeachingAssignment $assignment): bool => (int) $assignment->day_of_week === $todayNumber)
             ->values();
-
-        return $todaySchedules->isNotEmpty()
-            ? $todaySchedules
-            : $schedules->take(3)->values();
     }
 
     /**

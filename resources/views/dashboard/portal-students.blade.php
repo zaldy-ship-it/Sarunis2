@@ -78,7 +78,7 @@
                             <strong>{{ $group['total'] }} siswa</strong>
                             <small>{{ $group['male'] }} Laki-laki | {{ $group['female'] }} Perempuan</small>
                         </div>
-                        <a class="btn btn-primary btn-sm" href="{{ url('/guru-mapel/absensi-siswa') }}">
+                        <a class="btn btn-primary btn-sm" href="{{ url('/guru-mapel/absensi-siswa/tambah') }}">
                             Isi Absensi Mapel
                         </a>
                     </div>
@@ -206,7 +206,7 @@
                             <strong>{{ $group['total'] }} siswa</strong>
                             <small>{{ $group['male'] }} Laki-laki | {{ $group['female'] }} Perempuan</small>
                         </div>
-                        <a class="btn btn-primary btn-sm" href="{{ $portalKey === 'guru-mapel' ? url('/guru-mapel/absensi-siswa') : url('/walikelas/dashboard#absensi-kelas') }}">
+                        <a class="btn btn-primary btn-sm" href="{{ $portalKey === 'guru-mapel' ? url('/guru-mapel/absensi-siswa/tambah') : url('/walikelas/dashboard#absensi-kelas') }}">
                             {{ $portalKey === 'guru-mapel' ? 'Isi Absensi' : 'Absensi Kelas' }}
                         </a>
                     </div>

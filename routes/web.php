@@ -112,7 +112,9 @@ Route::prefix('admin')->middleware('role:admin')->group(function () {
 Route::prefix('guru-mapel')->middleware('role:guru_mapel')->group(function () {
     Route::get('/dashboard', [PortalDashboardController::class, 'teacher']);
     Route::get('/jadwal-mengajar', [PortalDashboardController::class, 'teacherSchedulePage']);
-    Route::get('/absensi-siswa', [PortalDashboardController::class, 'teacherAttendancePage']);
+    Route::redirect('/absensi-siswa', '/guru-mapel/absensi-siswa/tambah');
+    Route::get('/absensi-siswa/tambah', [PortalDashboardController::class, 'teacherAttendancePage']);
+    Route::get('/absensi-siswa/daftar', [PortalDashboardController::class, 'teacherAttendanceListPage']);
     Route::get('/rekap-absensi', [PortalDashboardController::class, 'teacherAttendanceRecapPage']);
     Route::get('/rekap-absensi/print', [PortalDashboardController::class, 'teacherAttendancePrint']);
     Route::get('/rekap-absensi/export/{format}', [PortalDashboardController::class, 'teacherAttendanceExport']);

@@ -10,7 +10,7 @@
             <div class="portal-directory-header portal-teacher-attendance-hero">
                 <div>
                     <span class="portal-hero__badge">{{ $activeAcademicYear }} | {{ ucfirst($activeSemester) }}</span>
-                    <h1>Isi Absensi Mapel</h1>
+                    <h1>Tambah Absen</h1>
                     <p>Pilih jadwal, tandai kehadiran siswa, lalu simpan absensi mapel.</p>
                 </div>
                 <div class="portal-teacher-attendance-hero__meta">
@@ -20,13 +20,6 @@
             </div>
 
             @include('dashboard.partials.teacher-attendance-form')
-
-            @include('dashboard.partials.teacher-attendance-recap', [
-                'recapSectionId' => 'absensi-mapel-tercatat',
-                'recapSectionLabel' => 'Absensi Mapel Tercatat',
-                'recapTitle' => 'Absensi yang Telah Dilakukan',
-                'recapDescription' => 'Daftar absensi mapel yang sudah tersimpan untuk jadwal mengajar aktif.',
-            ])
         </main>
     </div>
 @endsection

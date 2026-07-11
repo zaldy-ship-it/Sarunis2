@@ -146,18 +146,35 @@
                 summary.textContent = filteredStudents.length + ' siswa tampil pada kelas ini.';
             }
 
-            roster.innerHTML = filteredStudents.map(function (student, index) {
-                    return '' +
-                    '<article class="portal-roster-row" data-student-id="' + escapeHtml(student.id) + '" data-search-item>' +
-                        '<span class="portal-roster-row__number">' + (index + 1) + '</span>' +
-                        '<div class="portal-roster-row__identity">' +
-                            '<strong>' + escapeHtml(student.name) + '</strong>' +
-                            '<small>NIK ' + escapeHtml(student.nik || '-') + ' | ' + escapeHtml(student.class_name || '-') + '</small>' +
-                        '</div>' +
+            let tableHTML = '<div class="table-responsive"><table class="table table-bordered table-hover align-middle mb-0">' +
+                '<thead>' +
+                    '<tr>' +
+                        '<th style="width: 50px;" class="text-center">No</th>' +
+                        '<th>Nama</th>' +
+                        '<th>NISN</th>' +
+                        '<th style="width: 200px;">Kehadiran</th>' +
+                        '<th style="width: 300px;">Keterangan</th>' +
+                    '</tr>' +
+                '</thead>' +
+                '<tbody>';
+
+            tableHTML += filteredStudents.map(function (student, index) {
+                return '' +
+                '<tr data-student-id="' + escapeHtml(student.id) + '" data-search-item>' +
+                    '<td class="text-center">' + (index + 1) + '</td>' +
+                    '<td><strong>' + escapeHtml(student.name) + '</strong></td>' +
+                    '<td>' + escapeHtml(student.nisn || student.nik || '-') + '</td>' +
+                    '<td>' +
                         '<select class="form-select" data-student-status aria-label="Status ' + escapeHtml(student.name) + '">' + statusOptions() + '</select>' +
+                    '</td>' +
+                    '<td>' +
                         '<input class="form-control" type="text" data-student-notes placeholder="Catatan">' +
-                    '</article>';
-                }).join('');
+                    '</td>' +
+                '</tr>';
+            }).join('');
+
+            tableHTML += '</tbody></table></div>';
+            roster.innerHTML = tableHTML;
         };
 
         const checkAttendanceStatus = async function (form, date) {

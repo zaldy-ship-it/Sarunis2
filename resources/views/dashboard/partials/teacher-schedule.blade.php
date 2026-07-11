@@ -3,7 +3,7 @@
     $classCount = collect($scheduleRows)->pluck('class_name')->filter()->unique()->count();
     $roomCount = collect($scheduleRows)->pluck('room')->filter(fn ($room) => $room !== '-')->unique()->count();
     $actionUrls = array_merge([
-        'attendance' => url('/guru-mapel/absensi-siswa'),
+        'attendance' => url('/guru-mapel/absensi-siswa/tambah'),
         'students' => null,
         'recap' => url('/guru-mapel/rekap-absensi'),
     ], $scheduleActionUrls ?? []);

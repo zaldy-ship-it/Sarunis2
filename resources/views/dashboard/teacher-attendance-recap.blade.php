@@ -10,7 +10,7 @@
             <div class="portal-directory-header">
                 <div>
                     <span class="portal-hero__badge">{{ $activeAcademicYear }} | {{ ucfirst($activeSemester) }}</span>
-                    <h1>Rekap Absensi Mapel</h1>
+                    <h1>Rekap Absen</h1>
                     <p>Pantau ringkasan absensi berdasarkan jadwal mengajar aktif.</p>
                 </div>
             </div>

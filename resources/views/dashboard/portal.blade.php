@@ -342,7 +342,7 @@
                     <div class="portal-section-heading">
                         <div>
                             <h2>Jadwal Mengajar Hari Ini</h2>
-                            <p>Ringkasan jadwal yang perlu dipantau pada sesi aktif.</p>
+                            <p>{{ $todayLabel ?? 'Hari ini' }} — Ringkasan jadwal yang perlu dipantau pada sesi aktif.</p>
                         </div>
                     </div>
 
@@ -357,7 +357,7 @@
                             <span class="portal-badge is-{{ $row['status']['tone'] }}">{{ $row['status']['label'] }}</span>
                         </div>
                         @empty
-                        <div class="text-muted">Belum ada jadwal yang bisa ditampilkan.</div>
+                        <div class="text-muted">Tidak ada jadwal untuk hari ini.</div>
                         @endforelse
                     </div>
                 </section>
@@ -405,6 +405,47 @@
                     @endforeach
                 </section>
 
+                @if (!empty($scheduleRows))
+                <section class="portal-panel portal-table-card" data-dashboard-section data-section-label="Informasi Kelas">
+                    <div class="portal-section-heading">
+                        <div>
+                            <h2>Informasi Kelas Siswa</h2>
+                            <p>Daftar kelas yang diajar hari ini beserta jumlah siswa.</p>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table portal-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Kelas</th>
+                                    <th>Mapel</th>
+                                    <th>Jam</th>
+                                    <th>Jumlah Siswa</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $classStudentCounts = collect($teacherStudents ?? [])
+                                        ->groupBy('school_class_id')
+                                        ->map(fn($group) => $group->count());
+                                @endphp
+                                @foreach ($scheduleRows as $index => $row)
+                                <tr data-search-item>
+                                    <td>{{ $index + 1 }}</td>
+                                    <td><strong>{{ $row['class_name'] }}</strong></td>
+                                    <td>{{ $row['subject'] }}</td>
+                                    <td>{{ $row['time'] }}</td>
+                                    <td><span class="portal-badge is-primary">{{ $classStudentCounts[$row['school_class_id']] ?? 0 }} siswa</span></td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                @endif
+
                 <section class="portal-admin-overview" data-dashboard-section data-section-label="Pintasan Guru Mapel">
                     <div class="portal-admin-actions">
                         <a class="portal-panel portal-action-card" href="{{ url('/guru-mapel/jadwal-mengajar') }}" data-note-preset="Cek jadwal mengajar hari ini.">
@@ -415,19 +456,27 @@
                             <small>Lihat sesi aktif hari ini.</small>
                         </a>
 
-                        <a class="portal-panel portal-action-card" href="{{ url('/guru-mapel/absensi-siswa') }}" data-note-preset="Isi absensi mapel sebelum jam terakhir.">
+                        <a class="portal-panel portal-action-card" href="{{ url('/guru-mapel/absensi-siswa/tambah') }}" data-note-preset="Isi absensi mapel sebelum jam terakhir.">
                             <span class="portal-action-card__icon">
                                 @include('dashboard.partials.icon', ['name' => 'attendance'])
                             </span>
-                            <strong>Isi Absensi Mapel</strong>
-                            <small>Simpan Absensi Mapel per jadwal.</small>
+                            <strong>Tambah Absen</strong>
+                            <small>Input absensi baru per jadwal.</small>
+                        </a>
+
+                        <a class="portal-panel portal-action-card" href="{{ url('/guru-mapel/absensi-siswa/daftar') }}" data-note-preset="Cek daftar absensi yang sudah diinput.">
+                            <span class="portal-action-card__icon">
+                                @include('dashboard.partials.icon', ['name' => 'recap'])
+                            </span>
+                            <strong>Daftar Absen</strong>
+                            <small>Lihat absensi yang sudah tersimpan.</small>
                         </a>
 
                         <a class="portal-panel portal-action-card" href="{{ url('/guru-mapel/rekap-absensi') }}" data-note-preset="Review rekap absensi mapel.">
                             <span class="portal-action-card__icon">
                                 @include('dashboard.partials.icon', ['name' => 'recap'])
                             </span>
-                            <strong>Rekap Absensi</strong>
+                            <strong>Rekap Absen</strong>
                             <small>Pantau ringkasan kehadiran.</small>
                         </a>
                     </div>
@@ -819,7 +868,7 @@
                     <div class="portal-section-heading">
                         <div>
                             <h2>Jadwal Pelajaran Hari Ini</h2>
-                            <p>Lihat urutan mapel yang akan diikuti hari ini.</p>
+                            <p>{{ $todayLabel ?? 'Hari ini' }}@if (!empty($studentClassName)) - Kelas {{ $studentClassName }}@endif</p>
                         </div>
                     </div>
 
@@ -845,7 +894,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">Belum ada jadwal untuk ditampilkan.</td>
+                                    <td colspan="5" class="text-center text-muted py-4">Tidak ada jadwal untuk hari ini.</td>
                                 </tr>
                                 @endforelse
                             </tbody>
