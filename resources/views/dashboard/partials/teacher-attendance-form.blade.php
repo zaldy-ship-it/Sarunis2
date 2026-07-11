@@ -13,7 +13,9 @@
                 <span>Jadwal</span>
                 <select class="form-select" data-assignment-select required>
                     @forelse ($scheduleRows as $row)
-                        <option value="{{ $row['id'] }}" data-class-id="{{ $row['school_class_id'] }}">{{ $row['time'] }} | {{ $row['subject'] }} | {{ $row['class_name'] }}</option>
+                        <option value="{{ $row['id'] }}" data-class-id="{{ $row['school_class_id'] }}">
+                            {{ $row['time'] }} | {{ $row['subject'] }} | {{ $row['class_name'] }}{{ !empty($row['meeting_label']) ? ' (' . $row['meeting_label'] . ')' : '' }}
+                        </option>
                     @empty
                         <option value="">Belum ada jadwal</option>
                     @endforelse

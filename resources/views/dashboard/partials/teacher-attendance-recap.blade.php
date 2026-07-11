@@ -42,7 +42,7 @@
             <span>{{ count($attendanceDetailRows) }} detail</span>
         </div>
         <div class="row g-2 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label" for="{{ $recapSectionId }}-subject">Mapel</label>
                 <select class="form-control" id="{{ $recapSectionId }}-subject" name="subject_id">
                     <option value="">Semua mapel</option>
@@ -51,13 +51,24 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label" for="{{ $recapSectionId }}-class">Kelas Ajar</label>
                 <select class="form-control" id="{{ $recapSectionId }}-class" name="school_class_id">
                     <option value="">Semua kelas ajar</option>
                     @foreach (($teacherExportClasses ?? []) as $classOption)
                         <option value="{{ $classOption['id'] }}" @selected((string) ($recapFilters['school_class_id'] ?? '') === (string) $classOption['id'])>{{ $classOption['name'] }}</option>
                     @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="{{ $recapSectionId }}-meeting">Pertemuan</label>
+                <select class="form-control" id="{{ $recapSectionId }}-meeting" name="meeting">
+                    <option value="">Semua pertemuan</option>
+                    @for ($i = 1; $i <= 16; $i++)
+                        <option value="Pertemuan {{ $i }}" @selected(($recapFilters['meeting'] ?? '') === "Pertemuan {$i}")>Pertemuan {{ $i }}</option>
+                    @endfor
+                    <option value="UTS" @selected(($recapFilters['meeting'] ?? '') === 'UTS')>UTS</option>
+                    <option value="UAS" @selected(($recapFilters['meeting'] ?? '') === 'UAS')>UAS</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -69,8 +80,8 @@
                 <input class="form-control" id="{{ $recapSectionId }}-to" type="date" name="date_to" value="{{ $recapFilters['date_to'] ?? '' }}">
             </div>
             <div class="col-md-2 d-flex gap-2">
-                <button class="btn btn-primary btn-sm" type="submit">Terapkan</button>
-                <a class="btn btn-outline-primary btn-sm" href="{{ url()->current() }}">Reset</a>
+                <button class="btn btn-primary btn-sm w-100" type="submit">Terapkan</button>
+                <a class="btn btn-outline-primary btn-sm w-100 text-center" href="{{ url()->current() }}">Reset</a>
             </div>
         </div>
     </form>
@@ -125,15 +136,15 @@
                 <tbody>
                     @forelse ($attendanceRecapRows as $row)
                         <tr data-search-item>
-                            <td>{{ $row['subject'] }}</td>
-                            <td>{{ $row['class_name'] }}</td>
-                            <td>{{ $row['dates_count'] }}</td>
-                            <td>{{ $row['hadir'] }}</td>
-                            <td>{{ $row['izin'] }}</td>
-                            <td>{{ $row['sakit'] }}</td>
-                            <td>{{ $row['alpha'] }}</td>
-                            <td><span class="portal-badge is-primary">{{ $row['present_rate'] }}%</span></td>
-                            <td>{{ $row['latest_date'] }}</td>
+                            <td data-label="Mapel">{{ $row['subject'] }}</td>
+                            <td data-label="Kelas">{{ $row['class_name'] }}</td>
+                            <td data-label="Pertemuan">{{ $row['dates_count'] }}</td>
+                            <td data-label="Hadir">{{ $row['hadir'] }}</td>
+                            <td data-label="Izin">{{ $row['izin'] }}</td>
+                            <td data-label="Sakit">{{ $row['sakit'] }}</td>
+                            <td data-label="Alpha">{{ $row['alpha'] }}</td>
+                            <td data-label="% Hadir"><span class="portal-badge is-primary">{{ $row['present_rate'] }}%</span></td>
+                            <td data-label="Terakhir">{{ $row['latest_date'] }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -157,6 +168,7 @@
             <table class="table portal-table portal-attendance-meeting-table mb-0">
                 <thead>
                     <tr>
+                        <th>Pertemuan</th>
                         <th>Tanggal</th>
                         <th>Jam</th>
                         <th>Mapel</th>
@@ -170,12 +182,19 @@
                 <tbody>
                     @forelse ($attendanceMeetingRows as $row)
                         <tr data-search-item>
-                            <td>{{ $row['date'] }}</td>
-                            <td>{{ $row['time'] }}</td>
-                            <td>{{ $row['subject'] }}</td>
-                            <td>{{ $row['class_name'] }}</td>
-                            <td>{{ $row['student_count'] }}</td>
-                            <td>
+                            <td data-label="Pertemuan">
+                                @if (str_starts_with($row['meeting_label'], 'Pertemuan'))
+                                    <span class="portal-badge is-primary">{{ $row['meeting_label'] }}</span>
+                                @else
+                                    <span class="portal-badge is-warning">{{ $row['meeting_label'] }}</span>
+                                @endif
+                            </td>
+                            <td data-label="Tanggal">{{ $row['date'] }}</td>
+                            <td data-label="Jam">{{ $row['time'] }}</td>
+                            <td data-label="Mapel">{{ $row['subject'] }}</td>
+                            <td data-label="Kelas">{{ $row['class_name'] }}</td>
+                            <td data-label="Siswa">{{ $row['student_count'] }}</td>
+                            <td data-label="Ringkasan">
                                 <div class="portal-attendance-status-summary">
                                     <span>H {{ $row['hadir'] }}</span>
                                     <span>I {{ $row['izin'] }}</span>
@@ -183,8 +202,8 @@
                                     <span>A {{ $row['alpha'] }}</span>
                                 </div>
                             </td>
-                            <td><span class="portal-badge is-primary">{{ $row['present_rate'] }}%</span></td>
-                            <td>
+                            <td data-label="% Hadir"><span class="portal-badge is-primary">{{ $row['present_rate'] }}%</span></td>
+                            <td data-label="Aksi">
                                 <button
                                     class="btn btn-outline-primary btn-sm"
                                     type="button"
@@ -196,7 +215,7 @@
                             </td>
                         </tr>
                         <tr class="portal-attendance-meeting-detail-row">
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="collapse" id="{{ $row['key'] }}">
                                     <div class="portal-attendance-meeting-detail">
                                         <div class="portal-report-card__header">
@@ -204,7 +223,7 @@
                                             <span>{{ count($row['details']) }} siswa</span>
                                         </div>
                                         <div class="table-responsive">
-                                            <table class="table portal-table mb-0">
+                                            <table class="table portal-table portal-attendance-detail-table mb-0">
                                                 <thead>
                                                     <tr>
                                                         <th>Nama Siswa</th>
@@ -216,10 +235,10 @@
                                                 <tbody>
                                                     @foreach ($row['details'] as $detail)
                                                         <tr>
-                                                            <td>{{ $detail['student'] }}</td>
-                                                            <td>{{ $detail['identifier'] }}</td>
-                                                            <td>{{ $detail['status'] }}</td>
-                                                            <td>{{ $detail['notes'] }}</td>
+                                                            <td data-label="Nama">{{ $detail['student'] }}</td>
+                                                            <td data-label="NISN/NIK">{{ $detail['identifier'] }}</td>
+                                                            <td data-label="Status">{{ $detail['status'] }}</td>
+                                                            <td data-label="Catatan">{{ $detail['notes'] }}</td>
                                                         </tr>
                                                     @endforeach
                                                 </tbody>
@@ -231,7 +250,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">Belum ada pertemuan absensi yang dapat ditampilkan.</td>
+                            <td colspan="9" class="text-center text-muted py-4">Belum ada pertemuan absensi yang dapat ditampilkan.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -251,6 +270,7 @@
             <table class="table portal-table mb-0">
                 <thead>
                     <tr>
+                        <th>Pertemuan</th>
                         <th>Tanggal</th>
                         <th>Mapel</th>
                         <th>Kelas</th>
@@ -262,16 +282,23 @@
                 <tbody>
                     @forelse ($attendanceDetailRows as $row)
                         <tr data-search-item>
-                            <td>{{ $row['date'] }}</td>
-                            <td>{{ $row['subject'] }}</td>
-                            <td>{{ $row['class_name'] }}</td>
-                            <td>{{ $row['student'] }}</td>
-                            <td>{{ $row['status'] }}</td>
-                            <td>{{ $row['notes'] }}</td>
+                            <td data-label="Pertemuan">
+                                @if (str_starts_with($row['meeting_label'], 'Pertemuan'))
+                                    <span class="portal-badge is-primary">{{ $row['meeting_label'] }}</span>
+                                @else
+                                    <span class="portal-badge is-warning">{{ $row['meeting_label'] }}</span>
+                                @endif
+                            </td>
+                            <td data-label="Tanggal">{{ $row['date'] }}</td>
+                            <td data-label="Mapel">{{ $row['subject'] }}</td>
+                            <td data-label="Kelas">{{ $row['class_name'] }}</td>
+                            <td data-label="Siswa">{{ $row['student'] }}</td>
+                            <td data-label="Status">{{ $row['status'] }}</td>
+                            <td data-label="Catatan">{{ $row['notes'] }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">Belum ada detail absensi yang dapat ditampilkan.</td>
+                            <td colspan="7" class="text-center text-muted py-4">Belum ada detail absensi yang dapat ditampilkan.</td>
                         </tr>
                     @endforelse
                 </tbody>

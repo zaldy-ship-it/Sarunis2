@@ -20,13 +20,29 @@
         'Orang Tua' => 'Informasi',
         'Siswa' => 'Akademik',
     ];
+
+    $flatMenuItems = [];
+    foreach ($menuSections as $section) {
+        foreach ($section['items'] as $item) {
+            $flatMenuItems[] = $item;
+        }
+    }
+
+    // Find Home
+    $homeItem = collect($flatMenuItems)->first(fn($item) => $item['icon'] === 'home' || str_contains(strtolower($item['label']), 'beranda')) 
+        ?? ($flatMenuItems[0] ?? null);
+
+    // Find Attendance/Absen
+    $attendanceItem = collect($flatMenuItems)->first(fn($item) => in_array($item['icon'], ['attendance', 'recap'], true) || str_contains(strtolower($item['label']), 'absen'))
+        ?? ($flatMenuItems[1] ?? null);
+
+    // Find Schedule/Calendar
+    $scheduleItem = collect($flatMenuItems)->first(fn($item) => in_array($item['icon'], ['schedule', 'calendar'], true) || str_contains(strtolower($item['label']), 'jadwal') || str_contains(strtolower($item['label']), 'kalender'))
+        ?? ($flatMenuItems[2] ?? null);
 @endphp
 
 <header class="portal-mobile-shellbar" data-mobile-shellbar>
-    <button class="portal-mobile-menu-button" type="button" aria-label="Buka menu" aria-expanded="false" data-sidebar-open>
-        <span aria-hidden="true">☰</span>
-    </button>
-    <div class="portal-mobile-shellbar__brand">
+    <div class="portal-mobile-shellbar__brand" style="margin-left: 0.5rem;">
         <strong>{{ config('app.name', 'Sarunis') }}</strong>
         <span>{{ $userRoles->implode(' + ') ?: 'Portal Sekolah' }}</span>
     </div>
@@ -93,3 +109,86 @@
         </form>
     </div>
 </aside>
+
+<!-- Bottom Navigation Bar for Mobile -->
+<nav class="portal-bottom-nav d-lg-none" aria-label="Bottom Navigation">
+    @if ($homeItem)
+        <a href="{{ $homeItem['href'] }}" class="portal-bottom-nav-item {{ $homeItem['active'] ? 'is-active' : '' }}">
+            <span class="portal-bottom-nav-icon">
+                @include('dashboard.partials.icon', ['name' => $homeItem['icon']])
+            </span>
+            <span class="portal-bottom-nav-label">{{ $homeItem['label'] }}</span>
+        </a>
+    @endif
+
+    @if ($attendanceItem && $attendanceItem !== $homeItem)
+        <a href="{{ $attendanceItem['href'] }}" class="portal-bottom-nav-item {{ $attendanceItem['active'] ? 'is-active' : '' }}">
+            <span class="portal-bottom-nav-icon">
+                @include('dashboard.partials.icon', ['name' => $attendanceItem['icon']])
+            </span>
+            <span class="portal-bottom-nav-label">{{ $attendanceItem['label'] }}</span>
+        </a>
+    @endif
+
+    @if ($scheduleItem && $scheduleItem !== $homeItem && $scheduleItem !== $attendanceItem)
+        <a href="{{ $scheduleItem['href'] }}" class="portal-bottom-nav-item {{ $scheduleItem['active'] ? 'is-active' : '' }}">
+            <span class="portal-bottom-nav-icon">
+                @include('dashboard.partials.icon', ['name' => $scheduleItem['icon']])
+            </span>
+            <span class="portal-bottom-nav-label">{{ $scheduleItem['label'] }}</span>
+        </a>
+    @endif
+
+    <button type="button" class="portal-bottom-nav-item" data-portal-menu-toggle>
+        <span class="portal-bottom-nav-icon">
+            @include('dashboard.partials.icon', ['name' => 'menu'])
+        </span>
+        <span class="portal-bottom-nav-label">Menu</span>
+    </button>
+</nav>
+
+<!-- Mobile Menu Overlay (Grid Layout) -->
+<div class="portal-mobile-menu-overlay d-none" id="mobileMenuOverlay">
+    <div class="portal-mobile-menu-overlay-header">
+        <h5>Semua Menu</h5>
+        <button type="button" class="portal-mobile-menu-overlay-close" data-portal-menu-toggle>&times;</button>
+    </div>
+    <div class="portal-mobile-menu-overlay-body">
+        <div class="portal-mobile-menu-grid">
+            @foreach ($flatMenuItems as $item)
+                <a href="{{ $item['href'] }}" class="portal-mobile-menu-grid-item {{ $item['active'] ? 'is-active' : '' }}">
+                    <span class="portal-mobile-menu-grid-icon">
+                        @include('dashboard.partials.icon', ['name' => $item['icon']])
+                    </span>
+                    <span class="portal-mobile-menu-grid-label">{{ $item['label'] }}</span>
+                </a>
+            @endforeach
+            
+            <!-- Log out button -->
+            <form method="POST" action="{{ url('/logout') }}" class="w-100 grid-col-span-all" style="grid-column: span 3;">
+                @csrf
+                <button type="submit" class="portal-mobile-menu-grid-item portal-mobile-menu-grid-item-logout" style="width: 100%; border: 0; background: transparent; padding-top: 1rem; color: #dc3545; display: flex; flex-direction: column; align-items: center;">
+                    <span class="portal-mobile-menu-grid-icon text-danger" style="margin-bottom: 0.5rem;">
+                        @include('dashboard.partials.icon', ['name' => 'logout'])
+                    </span>
+                    <span class="portal-mobile-menu-grid-label text-danger">Keluar</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggles = document.querySelectorAll('[data-portal-menu-toggle]');
+        const overlay = document.getElementById('mobileMenuOverlay');
+
+        toggles.forEach(function (toggle) {
+            toggle.addEventListener('click', function () {
+                if (overlay) {
+                    overlay.classList.toggle('d-none');
+                }
+            });
+        });
+    });
+</script>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Concerns\ResolvesSchoolProfiles;
+use App\Models\AcademicCalendar;
 use App\Models\ClassAttendance;
 use App\Models\SchoolClass;
 use App\Models\Student;
@@ -1852,6 +1853,20 @@ class PortalDashboardController extends Controller
             ];
         })->values()->all();
 
+        $allMeetingRowsForFilter = $this->teacherAttendanceMeetingRows($attendances);
+        $meetingFilter = $request->query('meeting');
+        if (is_string($meetingFilter) && $meetingFilter !== '') {
+            $matchingDates = collect($allMeetingRowsForFilter)
+                ->filter(fn($row) => $row['meeting_label'] === $meetingFilter)
+                ->pluck('date_sort')
+                ->unique()
+                ->all();
+
+            $attendances = $attendances->filter(function (SubjectAttendance $attendance) use ($matchingDates) {
+                return in_array($attendance->attendance_date?->toDateString(), $matchingDates, true);
+            });
+        }
+
         return $this->baseDashboardData($user, 'guru-mapel', $payload, [
             'hero' => [
                 'title' => 'Hai Guru!',
@@ -1981,6 +1996,7 @@ class PortalDashboardController extends Controller
         return $attendances
             ->map(function (SubjectAttendance $attendance): array {
                 $assignment = $attendance->teachingAssignment;
+                $dateStr = $attendance->attendance_date?->toDateString() ?? '';
 
                 return [
                     'date' => $attendance->attendance_date?->format('d-m-Y') ?? '-',
@@ -1989,6 +2005,9 @@ class PortalDashboardController extends Controller
                     'student' => $attendance->student?->name ?? 'Siswa',
                     'status' => ucfirst($attendance->status),
                     'notes' => $attendance->notes ?: '-',
+                    'meeting_label' => $assignment !== null && $dateStr
+                        ? $this->getMeetingLabelForSchedule($assignment->id, $dateStr)
+                        : '-',
                 ];
             })
             ->values()
@@ -2001,51 +2020,60 @@ class PortalDashboardController extends Controller
      */
     protected function teacherAttendanceMeetingRows(Collection $attendances): array
     {
-        return $attendances
+        // Group attendance records by teaching_assignment_id + attendance_date.
+        $grouped = $attendances
             ->groupBy(fn(SubjectAttendance $attendance): string => implode('|', [
                 $attendance->teaching_assignment_id,
                 $attendance->attendance_date?->toDateString() ?? '',
-            ]))
-            ->map(function (Collection $records, string $key): array {
-                $first = $records->first();
-                $assignment = $first?->teachingAssignment;
-                $date = $first?->attendance_date;
-                $total = $records->count();
-                $hadir = $records->where('status', AttendanceStatus::HADIR->value)->count();
+            ]));
 
-                return [
-                    'key' => 'attendance-meeting-' . md5($key),
-                    'date' => $date?->format('d-m-Y') ?? '-',
-                    'date_sort' => $date?->toDateString() ?? '',
-                    'subject' => $assignment?->subject?->name ?? 'Mapel',
-                    'class_name' => $assignment?->schoolClass?->name ?? 'Kelas',
-                    'time' => $assignment !== null ? $this->timeRange($assignment->start_time, $assignment->end_time) : '-',
-                    'student_count' => $total,
-                    'hadir' => $hadir,
-                    'izin' => $records->where('status', AttendanceStatus::IZIN->value)->count(),
-                    'sakit' => $records->where('status', AttendanceStatus::SAKIT->value)->count(),
-                    'alpha' => $records->where('status', AttendanceStatus::ALPHA->value)->count(),
-                    'present_rate' => $total > 0 ? (int) round(($hadir / $total) * 100) : 0,
-                    'details' => $records
-                        ->sortBy(fn(SubjectAttendance $attendance): string => $attendance->student?->name ?? '')
-                        ->map(fn(SubjectAttendance $attendance): array => [
-                            'student' => $attendance->student?->name ?? 'Siswa',
-                            'identifier' => $attendance->student?->nisn ?: ($attendance->student?->nik ?: '-'),
-                            'status' => ucfirst($attendance->status),
-                            'notes' => $attendance->notes ?: '-',
-                        ])
-                        ->values()
-                        ->all(),
-                ];
-            })
-            ->sortBy([
-                ['date_sort', 'desc'],
-                ['subject', 'asc'],
-                ['class_name', 'asc'],
-                ['time', 'asc'],
-            ])
-            ->values()
-            ->all();
+        // Build raw meeting rows.
+        return $grouped->map(function (Collection $records, string $key): array {
+            $first = $records->first();
+            $assignment = $first?->teachingAssignment;
+            $date = $first?->attendance_date;
+            $dateString = $date?->toDateString() ?? '';
+            $total = $records->count();
+            $hadir = $records->where('status', AttendanceStatus::HADIR->value)->count();
+
+            $meetingLabel = $first !== null && $dateString
+                ? $this->getMeetingLabelForSchedule($first->teaching_assignment_id, $dateString)
+                : '-';
+
+            return [
+                'key' => 'attendance-meeting-' . md5($key),
+                'date' => $date?->format('d-m-Y') ?? '-',
+                'date_sort' => $dateString,
+                'subject' => $assignment?->subject?->name ?? 'Mapel',
+                'class_name' => $assignment?->schoolClass?->name ?? 'Kelas',
+                'time' => $assignment !== null ? $this->timeRange($assignment->start_time, $assignment->end_time) : '-',
+                'student_count' => $total,
+                'hadir' => $hadir,
+                'izin' => $records->where('status', AttendanceStatus::IZIN->value)->count(),
+                'sakit' => $records->where('status', AttendanceStatus::SAKIT->value)->count(),
+                'alpha' => $records->where('status', AttendanceStatus::ALPHA->value)->count(),
+                'present_rate' => $total > 0 ? (int) round(($hadir / $total) * 100) : 0,
+                'meeting_label' => $meetingLabel,
+                'details' => $records
+                    ->sortBy(fn(SubjectAttendance $attendance): string => $attendance->student?->name ?? '')
+                    ->map(fn(SubjectAttendance $attendance): array => [
+                        'student' => $attendance->student?->name ?? 'Siswa',
+                        'identifier' => $attendance->student?->nisn ?: ($attendance->student?->nik ?: '-'),
+                        'status' => ucfirst($attendance->status),
+                        'notes' => $attendance->notes ?: '-',
+                    ])
+                    ->values()
+                    ->all(),
+            ];
+        })
+        ->sortBy([
+            ['date_sort', 'desc'],
+            ['subject', 'asc'],
+            ['class_name', 'asc'],
+            ['time', 'asc'],
+        ])
+        ->values()
+        ->all();
     }
 
     /**
@@ -2053,7 +2081,14 @@ class PortalDashboardController extends Controller
      */
     protected function subjectAttendanceFiltersFromRequest(Request $request): array
     {
-        return $this->attendanceFiltersFromRequest($request, ['subject_id', 'school_class_id', 'teaching_assignment_id']);
+        $filters = $this->attendanceFiltersFromRequest($request, ['subject_id', 'school_class_id', 'teaching_assignment_id']);
+        
+        $meeting = $request->query('meeting');
+        if (is_string($meeting) && $meeting !== '') {
+            $filters['meeting'] = $meeting;
+        }
+
+        return $filters;
     }
 
     /**
@@ -2598,7 +2633,7 @@ class PortalDashboardController extends Controller
                 [
                     'title' => 'Informasi',
                     'items' => [
-                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => '#kalender-akademik', 'active' => false],
+                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/guru-mapel/kalender-akademik'), 'active' => false],
                     ],
                 ],
             ],
@@ -2616,7 +2651,7 @@ class PortalDashboardController extends Controller
                 [
                     'title' => 'Informasi',
                     'items' => [
-                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => '#kalender-akademik', 'active' => false],
+                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/walikelas/kalender-akademik'), 'active' => false],
                     ],
                 ],
             ],
@@ -2630,7 +2665,7 @@ class PortalDashboardController extends Controller
                 [
                     'title' => 'Informasi',
                     'items' => [
-                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => '#kalender-akademik', 'active' => false],
+                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/orang-tua/kalender-akademik'), 'active' => false],
                     ],
                 ],
             ],
@@ -2646,10 +2681,10 @@ class PortalDashboardController extends Controller
                 [
                     'title' => 'Informasi',
                     'items' => [
-                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => '#kalender-akademik', 'active' => false],
+                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/siswa/kalender-akademik'), 'active' => false],
                     ],
                 ],
-            ],
+            ];,
         };
 
         $menu[] = [
@@ -2962,9 +2997,69 @@ class PortalDashboardController extends Controller
                 'room' => $assignment->room ?? '-',
                 'students_count' => (int) ($assignment->schoolClass?->students_count ?? $assignment->schoolClass?->students()->count() ?? 0),
                 'status' => $this->scheduleStatusForDate($assignment, $date),
+                'meeting_label' => $this->getMeetingLabelForSchedule($assignment->id, $date),
             ])
             ->values()
             ->all();
+    }
+
+    protected function getMeetingLabelForSchedule(int $teachingAssignmentId, string $date): string
+    {
+        $academicYear = $this->activeAcademicYear();
+        $semester = $this->activeSemester();
+
+        $existingDates = SubjectAttendance::query()
+            ->where('teaching_assignment_id', $teachingAssignmentId)
+            ->whereNotNull('attendance_date')
+            ->select('attendance_date')
+            ->distinct()
+            ->get()
+            ->map(fn($record) => $record->attendance_date->toDateString())
+            ->toArray();
+
+        if (!in_array($date, $existingDates, true)) {
+            $existingDates[] = $date;
+        }
+
+        sort($existingDates);
+
+        $examEvents = AcademicCalendar::query()
+            ->where('academic_year', $academicYear)
+            ->where('semester', $semester)
+            ->where('is_active', true)
+            ->where('type', 'ujian')
+            ->orderBy('start_date')
+            ->get();
+
+        $examLabelForDate = function (string $dateString) use ($examEvents): ?string {
+            foreach ($examEvents as $event) {
+                if ($event->start_date->lte($dateString) && $event->end_date->gte($dateString)) {
+                    return $event->title;
+                }
+            }
+            return null;
+        };
+
+        $meetingCounter = 0;
+        $label = '-';
+
+        foreach ($existingDates as $d) {
+            $examLabel = $examLabelForDate($d);
+            if ($examLabel) {
+                if ($d === $date) {
+                    $label = $examLabel;
+                    break;
+                }
+            } else {
+                $meetingCounter++;
+                if ($d === $date) {
+                    $label = 'Pertemuan ' . $meetingCounter;
+                    break;
+                }
+            }
+        }
+
+        return $label;
     }
 
     /**

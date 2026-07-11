@@ -83,6 +83,9 @@
     @case('logout')
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 5H7C5.89543 5 5 5.89543 5 7V17C5 18.1046 5.89543 19 7 19H10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M14 8L18 12L14 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /><path d="M18 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
         @break
+    @case('menu')
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 12H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M4 18H20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        @break
     @default
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8" /></svg>
 @endswitch

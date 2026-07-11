@@ -4741,6 +4741,13 @@ html {
         text-transform: uppercase;
     }
 
+    .portal-attendance-meeting-detail-row {
+        border: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        margin-top: -0.5rem;
+    }
+
     .portal-attendance-meeting-detail-row > td {
         display: block;
         padding: 0 !important;
@@ -4750,7 +4757,515 @@ html {
         content: none;
     }
 
+    .portal-attendance-meeting-detail {
+        margin: 0 0 0.25rem;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .portal-attendance-detail-table tbody tr {
+        padding: 0.65rem;
+        border: 1px solid rgba(34, 152, 207, 0.14);
+        border-radius: 8px;
+        background: #f8fbfd;
+    }
+
     .portal-directory-actions {
         justify-content: flex-start;
     }
 }
+
+/* Bottom Navigation Bar */
+.portal-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4rem;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(34, 152, 207, 0.16);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1045;
+    box-shadow: 0 -6px 20px rgba(16, 54, 76, 0.08);
+}
+
+.portal-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #607789;
+    text-decoration: none;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 25%;
+    height: 100%;
+    padding: 0.35rem 0;
+    transition: color 0.18s ease, transform 0.1s ease;
+}
+
+.portal-bottom-nav-item:active {
+    transform: scale(0.94);
+}
+
+.portal-bottom-nav-icon {
+    width: 1.45rem;
+    height: 1.45rem;
+    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+.portal-bottom-nav-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.portal-bottom-nav-item.is-active,
+.portal-bottom-nav-item.is-active .portal-bottom-nav-icon {
+    color: var(--portal-primary, #2298cf);
+}
+
+/* Mobile Menu Grid Overlay */
+.portal-mobile-menu-overlay {
+    position: fixed;
+    top: 4rem; /* Below header */
+    left: 0;
+    right: 0;
+    bottom: 4rem; /* Above bottom nav */
+    background: rgba(238, 248, 253, 0.98);
+    backdrop-filter: blur(14px);
+    z-index: 1040;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -10px 24px rgba(16, 54, 76, 0.12);
+    animation: portalFadeIn 0.22s ease-out;
+}
+
+@keyframes portalFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.portal-mobile-menu-overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(34, 152, 207, 0.14);
+}
+
+.portal-mobile-menu-overlay-header h5 {
+    margin: 0;
+    font-weight: 800;
+    color: #10364c;
+    font-size: 1.05rem;
+}
+
+.portal-mobile-menu-overlay-close {
+    background: #ffffff;
+    border: 1px solid rgba(34, 152, 207, 0.24);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    color: #10364c;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.portal-mobile-menu-overlay-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+}
+
+.portal-mobile-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.portal-mobile-menu-grid-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: #ffffff;
+    border: 1px solid rgba(34, 152, 207, 0.18);
+    border-radius: 12px;
+    padding: 0.95rem 0.45rem;
+    text-decoration: none;
+    color: #10364c;
+    transition: background 0.18s, transform 0.12s;
+    box-shadow: 0 4px 10px rgba(16, 54, 76, 0.04);
+}
+
+.portal-mobile-menu-grid-item:active {
+    background: #eef8fd;
+    transform: scale(0.96);
+}
+
+.portal-mobile-menu-grid-item.is-active {
+    background: #eef8fd;
+    border-color: rgba(34, 152, 207, 0.52);
+    color: var(--portal-primary, #2298cf);
+    font-weight: 800;
+}
+
+.portal-mobile-menu-grid-icon {
+    width: 2.1rem;
+    height: 2.1rem;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+.portal-mobile-menu-grid-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.portal-mobile-menu-grid-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+/* Adjust layout on mobile */
+@media (max-width: 991.98px) {
+    .portal-mobile-menu-button {
+        display: none !important;
+    }
+    
+    .portal-dashboard-sidebar,
+    .portal-sidebar-backdrop {
+        display: none !important;
+    }
+
+    body.portal-dashboard-body {
+        padding-bottom: 4.5rem !important;
+    }
+
+    .portal-dashboard-grid #absensi-siswa,
+    .portal-dashboard-grid #absensi-kelas {
+        display: none !important;
+    }
+
+    .portal-admin-actions {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.75rem !important;
+    }
+}
+
+/* Schedule Card Items */
+.portal-schedule-card-item {
+    background: #ffffff;
+    border: 1px solid rgba(34, 152, 207, 0.16);
+    border-radius: 12px;
+    padding: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    box-shadow: 0 4px 12px rgba(16, 54, 76, 0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-align: left;
+}
+
+.portal-schedule-card-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(16, 54, 76, 0.08);
+    border-color: rgba(34, 152, 207, 0.32);
+}
+
+.portal-schedule-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.portal-schedule-card-time {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #21526e;
+    background: #eef8fd;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(34, 152, 207, 0.24);
+}
+
+.portal-schedule-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.portal-schedule-card-subject {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #10364c;
+}
+
+.portal-schedule-card-meta {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.portal-schedule-card-meta-item {
+    font-size: 0.88rem;
+    color: #607789;
+}
+
+.portal-schedule-card-meta-item strong {
+    color: #10364c;
+}
+
+/* Profile Layout Styles */
+.portal-profile-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.portal-profile-card {
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.portal-profile-avatar-wrapper {
+    width: 6.5rem;
+    height: 6.5rem;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 4px solid #ffffff;
+    box-shadow: 0 8px 24px rgba(16, 54, 76, 0.12);
+    background: linear-gradient(135deg, var(--portal-primary, #2298cf) 0%, #0c72a4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.portal-profile-avatar-fallback {
+    color: #ffffff;
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+}
+
+.portal-profile-name {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #10364c;
+}
+
+.portal-profile-card-details {
+    width: 100%;
+    border-top: 1px solid rgba(34, 152, 207, 0.14);
+    padding-top: 1.25rem;
+}
+
+.portal-profile-detail-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.portal-profile-detail-item span {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.portal-profile-detail-item strong {
+    font-size: 0.95rem;
+    color: #10364c;
+    word-break: break-all;
+}
+
+.portal-profile-actions {
+    width: 100%;
+    margin-top: auto;
+}
+
+.font-bold {
+    font-weight: 700 !important;
+}
+
+@media (max-width: 767.98px) {
+    .portal-profile-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Academic Calendar Page Styles */
+.portal-calendar-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.portal-calendar-month-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #10364c;
+    border-bottom: 2px solid rgba(34, 152, 207, 0.16);
+    padding-bottom: 0.5rem;
+    margin-top: 2rem;
+    text-align: left;
+}
+
+.portal-calendar-event-card {
+    background: #ffffff;
+    border: 1px solid rgba(34, 152, 207, 0.14);
+    border-radius: 12px;
+    padding: 1.15rem;
+    display: flex;
+    gap: 1.15rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 4px 10px rgba(16, 54, 76, 0.02);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-align: left;
+}
+
+.portal-calendar-event-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(16, 54, 76, 0.06);
+    border-color: rgba(34, 152, 207, 0.3);
+}
+
+.portal-calendar-event-date-badge {
+    min-width: 60px;
+    height: 60px;
+    background: #eef8fd;
+    border: 1px solid rgba(34, 152, 207, 0.24);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #10364c;
+    flex-shrink: 0;
+}
+
+.portal-calendar-event-date-day {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.portal-calendar-event-date-month {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.portal-calendar-event-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.portal-calendar-event-header {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.portal-calendar-event-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #10364c;
+}
+
+.portal-calendar-event-desc {
+    margin: 0;
+    font-size: 0.84rem;
+    color: #607789;
+    line-height: 1.45;
+}
+
+.portal-calendar-event-footer {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.78rem;
+    color: #8c9ba5;
+    margin-top: 0.25rem;
+}
+
+.portal-calendar-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.portal-calendar-info-widget {
+    padding: 1.25rem;
+}
+
+.portal-calendar-info-widget h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #10364c;
+    border-bottom: 1px solid rgba(34, 152, 207, 0.12);
+    padding-bottom: 0.5rem;
+    text-align: left;
+}
+
+.portal-calendar-quick-item {
+    padding: 0.65rem 0;
+    border-bottom: 1px dashed rgba(34, 152, 207, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    text-align: left;
+}
+
+.portal-calendar-quick-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.portal-calendar-quick-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #10364c;
+}
+
+.portal-calendar-quick-date {
+    font-size: 0.75rem;
+    color: #607789;
+}
+
+@media (max-width: 991.98px) {
+    .portal-calendar-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+

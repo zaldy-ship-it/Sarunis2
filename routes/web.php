@@ -153,6 +153,7 @@ Route::prefix('walikelas')->middleware('homeroom-class')->group(function () {
 
 Route::prefix('orang-tua')->middleware('role:orang_tua')->group(function () {
     Route::get('/dashboard', [PortalDashboardController::class, 'parent']);
+    Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
 });
 
 Route::prefix('siswa')->middleware('role:siswa')->group(function () {

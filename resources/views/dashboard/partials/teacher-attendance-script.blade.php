@@ -35,7 +35,11 @@
         };
 
         const scheduleOptionLabel = function (schedule) {
-            return [schedule.time, schedule.subject, schedule.class_name].filter(Boolean).join(' | ');
+            let label = [schedule.time, schedule.subject, schedule.class_name].filter(Boolean).join(' | ');
+            if (schedule.meeting_label) {
+                label += ' (' + schedule.meeting_label + ')';
+            }
+            return label;
         };
 
         const updateScheduleMeta = function (schedules) {
@@ -92,6 +96,8 @@
             cards.innerHTML = schedules.map(function (schedule) {
                 const isActive = String(schedule.id) === String(selectedId || '');
                 const status = schedule.status || {};
+                const badgeClass = (schedule.meeting_label || '').indexOf('Pertemuan') === 0 ? 'is-primary' : 'is-warning';
+                const meetingBadge = schedule.meeting_label ? '<div><span class="portal-badge ' + badgeClass + ' mt-1" style="font-size: 0.74rem; display: inline-block;">' + escapeHtml(schedule.meeting_label) + '</span></div>' : '';
 
                 return '' +
                     '<button class="portal-assignment-card' + (isActive ? ' is-active' : '') + '" type="button" data-assignment-card="' + escapeHtml(schedule.id) + '">' +
@@ -99,6 +105,7 @@
                         '<span class="portal-assignment-card__main">' +
                             '<strong>' + escapeHtml(schedule.subject) + '</strong>' +
                             '<small>' + escapeHtml(schedule.class_name) + ' | ' + escapeHtml(schedule.students_count || 0) + ' siswa</small>' +
+                            meetingBadge +
                         '</span>' +
                         '<span class="portal-assignment-card__meta">' +
                             '<small>' + escapeHtml(schedule.day_name || '') + '</small>' +

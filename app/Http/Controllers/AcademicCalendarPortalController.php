@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Services\AcademicCalendarService;
 use App\Services\AppSettingService;
 use App\Services\SemesterLockService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +17,7 @@ class AcademicCalendarPortalController extends Controller
     ) {
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
         $filters = $request->validate([
             'academic_year' => ['nullable', 'string', 'regex:/^\d{4}\/\d{4}$/'],
@@ -31,12 +30,47 @@ class AcademicCalendarPortalController extends Controller
         $filters['semester'] ??= $this->appSettingService->value('active_semester', 'ganjil') ?: 'ganjil';
         $filters['is_active'] = true;
 
-        return response()->json([
-            'data' => $this->academicCalendarService->list($filters),
+        $events = $this->academicCalendarService->list($filters);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'data' => $events,
+            ]);
+        }
+
+        // Determine portal key
+        $portalKey = 'siswa';
+        if ($request->is('guru-mapel/*') || $request->is('guru-mapel')) {
+            $portalKey = 'guru-mapel';
+        } elseif ($request->is('walikelas/*') || $request->is('walikelas')) {
+            $portalKey = 'walikelas';
+        } elseif ($request->is('orang-tua/*') || $request->is('orang-tua')) {
+            $portalKey = 'orang-tua';
+        }
+
+        $menuSections = app(PortalDashboardController::class)->menuForPortalPage($portalKey, 'Kalender Akademik');
+        $semesterLock = $this->semesterLockService->lockFor($filters['academic_year'], $filters['semester']);
+
+        // Divide events into lists
+        $upcomingEvents = $events->filter(fn($event) => $event->end_date >= now()->toDateString())->sortBy('start_date');
+        $holidays = $events->filter(fn($event) => $event->is_holiday)->sortBy('start_date');
+        $exams = $events->filter(fn($event) => $event->type === 'ujian' || str_contains(strtolower($event->title), 'uts') || str_contains(strtolower($event->title), 'uas'))->sortBy('start_date');
+
+        return view('dashboard.academic-calendar', [
+            'pageTitle' => 'Kalender Akademik',
+            'portalKey' => $portalKey,
+            'menuSections' => $menuSections,
+            'activeAcademicYear' => $filters['academic_year'],
+            'activeSemester' => $filters['semester'],
+            'events' => $events,
+            'upcomingEvents' => $upcomingEvents,
+            'holidays' => $holidays,
+            'exams' => $exams,
+            'semesterLock' => $semesterLock,
         ]);
     }
 
-    public function attendanceStatus(Request $request): JsonResponse
+    public function attendanceStatus(Request $request)
     {
         $payload = $request->validate([
             'date' => ['required', 'date'],

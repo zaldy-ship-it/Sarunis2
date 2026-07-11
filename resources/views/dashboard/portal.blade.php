@@ -348,13 +348,23 @@
 
                     <div class="portal-schedule-list">
                         @forelse ($scheduleRows as $row)
-                        <div class="portal-schedule-item portal-schedule-item--teacher" data-search-item>
-                            <span class="portal-chip portal-chip--time">{{ $row['time'] }}</span>
-                            <span class="portal-badge is-primary">Jam Ke-{{ $row['lesson_period'] }}</span>
-                            <span class="portal-chip">{{ $row['subject'] }}</span>
-                            <span class="portal-chip">{{ $row['class_name'] }}</span>
-                            <span class="portal-chip">{{ $row['room'] }}</span>
-                            <span class="portal-badge is-{{ $row['status']['tone'] }}">{{ $row['status']['label'] }}</span>
+                        <div class="portal-schedule-card-item" data-search-item>
+                            <div class="portal-schedule-card-header">
+                                <span class="portal-schedule-card-time">{{ $row['time'] }}</span>
+                                <span class="portal-badge is-primary">Jam Ke-{{ $row['lesson_period'] }}</span>
+                                <span class="portal-badge is-{{ $row['status']['tone'] }} ms-auto">{{ $row['status']['label'] }}</span>
+                            </div>
+                            <div class="portal-schedule-card-body">
+                                <h4 class="portal-schedule-card-subject">{{ $row['subject'] }}</h4>
+                                <div class="portal-schedule-card-meta">
+                                    <span class="portal-schedule-card-meta-item">
+                                        <strong>Kelas:</strong> {{ $row['class_name'] }}
+                                    </span>
+                                    <span class="portal-schedule-card-meta-item">
+                                        <strong>Ruang:</strong> {{ $row['room'] }}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                         @empty
                         <div class="text-muted">Tidak ada jadwal untuk hari ini.</div>
@@ -843,11 +853,17 @@
                         <h3 class="font-semibold text-lg mb-4">Jadwal Pelajaran Hari Ini</h3>
                         <div class="portal-schedule-list">
                             @forelse ($child['schedules'] as $row)
-                            <div class="portal-schedule-item portal-schedule-item--student mb-2" style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
-                                <span class="portal-chip portal-chip--time">{{ $row['time'] }}</span>
-                                <span class="portal-chip font-medium">{{ $row['subject'] }}</span>
-                                <span class="portal-chip text-gray-500">{{ $row['teacher'] }}</span>
-                                <span class="portal-chip text-gray-400">🚪 {{ $row['room'] }}</span>
+                            <div class="portal-schedule-card-item mb-2" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                                <div class="portal-schedule-card-header d-flex align-items-center gap-2" style="flex-wrap: wrap;">
+                                    <span class="portal-schedule-card-time" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.9rem;">{{ $row['time'] }}</span>
+                                    <span class="portal-badge is-primary ms-auto" style="font-size: 0.78rem;">🚪 {{ $row['room'] }}</span>
+                                </div>
+                                <div class="portal-schedule-card-body d-flex flex-column gap-1">
+                                    <h4 class="portal-schedule-card-subject" style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #fff; text-align: left;">{{ $row['subject'] }}</h4>
+                                    <span class="portal-schedule-card-meta-item" style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-align: left;">
+                                        <strong>Guru:</strong> {{ $row['teacher'] }}
+                                    </span>
+                                </div>
                             </div>
                             @empty
                             <div class="text-muted text-sm">Tidak ada jadwal pelajaran hari ini.</div>

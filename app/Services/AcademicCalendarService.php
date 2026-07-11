@@ -115,6 +115,23 @@ class AcademicCalendarService
         ];
     }
 
+    /**
+     * Check if a date falls within an exam period and return its label (e.g. 'UTS', 'UAS').
+     */
+    public function examTypeForDate(string $academicYear, string $semester, string $date): ?string
+    {
+        $event = AcademicCalendar::query()
+            ->where('academic_year', $academicYear)
+            ->where('semester', $semester)
+            ->where('is_active', true)
+            ->where('type', 'ujian')
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('end_date', '>=', $date)
+            ->first();
+
+        return $event?->title;
+    }
+
     protected function query(array $filters)
     {
         return AcademicCalendar::query()
