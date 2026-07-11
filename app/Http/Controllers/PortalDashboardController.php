@@ -1877,6 +1877,7 @@ class PortalDashboardController extends Controller
             'attendanceCards' => $attendanceCards,
             'attendanceSummary' => $this->teacherAttendanceSummary($attendances),
             'attendanceRecapRows' => $this->teacherAttendanceRecapRows($attendances),
+            'attendanceMeetingRows' => $this->teacherAttendanceMeetingRows($attendances),
             'attendanceDetailRows' => $this->teacherAttendanceDetailRows($attendances),
             'attendanceFilters' => $attendanceFilters,
             'teacherExportSubjects' => $this->teacherExportSubjects($schedules),
@@ -1990,6 +1991,59 @@ class PortalDashboardController extends Controller
                     'notes' => $attendance->notes ?: '-',
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param Collection<int, SubjectAttendance> $attendances
+     * @return array<int, array<string, mixed>>
+     */
+    protected function teacherAttendanceMeetingRows(Collection $attendances): array
+    {
+        return $attendances
+            ->groupBy(fn(SubjectAttendance $attendance): string => implode('|', [
+                $attendance->teaching_assignment_id,
+                $attendance->attendance_date?->toDateString() ?? '',
+            ]))
+            ->map(function (Collection $records, string $key): array {
+                $first = $records->first();
+                $assignment = $first?->teachingAssignment;
+                $date = $first?->attendance_date;
+                $total = $records->count();
+                $hadir = $records->where('status', AttendanceStatus::HADIR->value)->count();
+
+                return [
+                    'key' => 'attendance-meeting-' . md5($key),
+                    'date' => $date?->format('d-m-Y') ?? '-',
+                    'date_sort' => $date?->toDateString() ?? '',
+                    'subject' => $assignment?->subject?->name ?? 'Mapel',
+                    'class_name' => $assignment?->schoolClass?->name ?? 'Kelas',
+                    'time' => $assignment !== null ? $this->timeRange($assignment->start_time, $assignment->end_time) : '-',
+                    'student_count' => $total,
+                    'hadir' => $hadir,
+                    'izin' => $records->where('status', AttendanceStatus::IZIN->value)->count(),
+                    'sakit' => $records->where('status', AttendanceStatus::SAKIT->value)->count(),
+                    'alpha' => $records->where('status', AttendanceStatus::ALPHA->value)->count(),
+                    'present_rate' => $total > 0 ? (int) round(($hadir / $total) * 100) : 0,
+                    'details' => $records
+                        ->sortBy(fn(SubjectAttendance $attendance): string => $attendance->student?->name ?? '')
+                        ->map(fn(SubjectAttendance $attendance): array => [
+                            'student' => $attendance->student?->name ?? 'Siswa',
+                            'identifier' => $attendance->student?->nisn ?: ($attendance->student?->nik ?: '-'),
+                            'status' => ucfirst($attendance->status),
+                            'notes' => $attendance->notes ?: '-',
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->sortBy([
+                ['date_sort', 'desc'],
+                ['subject', 'asc'],
+                ['class_name', 'asc'],
+                ['time', 'asc'],
+            ])
             ->values()
             ->all();
     }

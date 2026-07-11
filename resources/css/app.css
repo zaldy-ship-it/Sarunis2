@@ -3999,6 +3999,41 @@ html {
     font-weight: 800;
 }
 
+.portal-attendance-status-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.portal-attendance-status-summary span {
+    display: inline-flex;
+    min-height: 1.65rem;
+    align-items: center;
+    border-radius: 999px;
+    background: #eef6f0;
+    color: #214d36;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.portal-attendance-meeting-detail-row > td {
+    padding-top: 0 !important;
+    background: #f8faf8;
+}
+
+.portal-attendance-meeting-detail {
+    margin: 0.5rem 0;
+    border: 1px solid rgba(84, 111, 129, 0.12);
+    border-radius: 0.65rem;
+    background: #ffffff;
+    padding: 0.9rem;
+}
+
+.portal-attendance-meeting-detail .portal-report-card__header {
+    margin-bottom: 0.65rem;
+}
+
 .portal-report-bars,
 .portal-report-list {
     display: grid;
@@ -4704,6 +4739,15 @@ html {
         font-weight: 800;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+    }
+
+    .portal-attendance-meeting-detail-row > td {
+        display: block;
+        padding: 0 !important;
+    }
+
+    .portal-attendance-meeting-detail-row > td::before {
+        content: none;
     }
 
     .portal-directory-actions {

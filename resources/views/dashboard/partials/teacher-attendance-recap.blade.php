@@ -13,9 +13,11 @@
     $recapPrintUrl = $recapPrintUrl ?? $recapExportBaseUrl . '/print';
     $showExportActions = $showExportActions ?? true;
     $showAttendanceSummary = $showAttendanceSummary ?? true;
+    $showAttendanceMeetingTable = $showAttendanceMeetingTable ?? false;
     $showAttendanceRecapTable = $showAttendanceRecapTable ?? true;
     $showAttendanceDetailTable = $showAttendanceDetailTable ?? true;
     $attendanceDetailTitle = $attendanceDetailTitle ?? 'Detail Catatan Siswa';
+    $attendanceMeetingRows = $attendanceMeetingRows ?? [];
 @endphp
 
 <section class="portal-panel portal-teacher-recap" id="{{ $recapSectionId }}" data-dashboard-section data-section-label="{{ $recapSectionLabel }}">
@@ -136,6 +138,100 @@
                     @empty
                         <tr>
                             <td colspan="9" class="text-center text-muted py-4">Belum ada data absensi mapel.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        </div>
+    @endif
+
+    @if ($showAttendanceMeetingTable)
+        <div class="portal-report-card portal-report-card--wide">
+        <div class="portal-report-card__header">
+            <h3>Daftar Per Pertemuan</h3>
+            <span>{{ count($attendanceMeetingRows) }} pertemuan</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table portal-table portal-attendance-meeting-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Jam</th>
+                        <th>Mapel</th>
+                        <th>Kelas</th>
+                        <th>Siswa</th>
+                        <th>Ringkasan</th>
+                        <th>% Hadir</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($attendanceMeetingRows as $row)
+                        <tr data-search-item>
+                            <td>{{ $row['date'] }}</td>
+                            <td>{{ $row['time'] }}</td>
+                            <td>{{ $row['subject'] }}</td>
+                            <td>{{ $row['class_name'] }}</td>
+                            <td>{{ $row['student_count'] }}</td>
+                            <td>
+                                <div class="portal-attendance-status-summary">
+                                    <span>H {{ $row['hadir'] }}</span>
+                                    <span>I {{ $row['izin'] }}</span>
+                                    <span>S {{ $row['sakit'] }}</span>
+                                    <span>A {{ $row['alpha'] }}</span>
+                                </div>
+                            </td>
+                            <td><span class="portal-badge is-primary">{{ $row['present_rate'] }}%</span></td>
+                            <td>
+                                <button
+                                    class="btn btn-outline-primary btn-sm"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#{{ $row['key'] }}"
+                                    aria-expanded="false"
+                                    aria-controls="{{ $row['key'] }}"
+                                >Detail</button>
+                            </td>
+                        </tr>
+                        <tr class="portal-attendance-meeting-detail-row">
+                            <td colspan="8">
+                                <div class="collapse" id="{{ $row['key'] }}">
+                                    <div class="portal-attendance-meeting-detail">
+                                        <div class="portal-report-card__header">
+                                            <h3>Daftar Siswa Diabsen</h3>
+                                            <span>{{ count($row['details']) }} siswa</span>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table portal-table mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Nama Siswa</th>
+                                                        <th>NISN/NIK</th>
+                                                        <th>Status</th>
+                                                        <th>Catatan</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach ($row['details'] as $detail)
+                                                        <tr>
+                                                            <td>{{ $detail['student'] }}</td>
+                                                            <td>{{ $detail['identifier'] }}</td>
+                                                            <td>{{ $detail['status'] }}</td>
+                                                            <td>{{ $detail['notes'] }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Belum ada pertemuan absensi yang dapat ditampilkan.</td>
                         </tr>
                     @endforelse
                 </tbody>

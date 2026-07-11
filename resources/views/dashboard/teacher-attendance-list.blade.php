@@ -22,8 +22,9 @@
                 'recapDescription' => 'Gunakan filter untuk mencari absensi berdasarkan mapel, kelas, atau rentang tanggal.',
                 'showExportActions' => false,
                 'showAttendanceSummary' => false,
+                'showAttendanceMeetingTable' => true,
                 'showAttendanceRecapTable' => false,
-                'attendanceDetailTitle' => 'Daftar Absensi Siswa',
+                'showAttendanceDetailTable' => false,
             ])
         </main>
     </div>
