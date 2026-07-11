@@ -1124,6 +1124,29 @@ class PortalDashboardController extends Controller
         ]));
     }
 
+    public function teacherAttendanceSchedules(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'date' => ['required', 'date'],
+        ]);
+
+        $user = $this->dashboardUser($request);
+        $schedules = $user->hasRole('admin')
+            ? $this->teachingAssignmentService->schedules()
+            : $this->teachingAssignmentService->scheduleForTeacher($this->teacherFromRequest($request));
+
+        $scheduleRows = $this->scheduleRowsForDate($schedules, $payload['date']);
+
+        return response()->json([
+            'data' => [
+                'date' => $payload['date'],
+                'schedules' => $scheduleRows,
+                'total_schedules' => count($scheduleRows),
+                'total_students' => collect($scheduleRows)->sum('students_count'),
+            ],
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
     public function teacherAttendanceListPage(Request $request): Response
     {
         $data = $this->buildTeacherDashboard($request, $this->teacherPayload());
@@ -1816,9 +1839,10 @@ class PortalDashboardController extends Controller
             ? $this->subjectAttendanceService->recap($attendanceFilters)
             : $this->subjectAttendanceService->recapForTeacher($this->teacherFromRequest($request), $attendanceFilters);
 
-        $scheduleRows = $this->todaySchedules($schedules);
+        $scheduleRows = $this->scheduleRowsForDate($schedules, now()->toDateString());
         $latestAttendanceDate = $this->latestAttendanceDate($attendances);
-        $attendanceCards = $scheduleRows->take(3)->map(function (TeachingAssignment $assignment) use ($attendances, $latestAttendanceDate): array {
+        $todayAssignments = $this->schedulesForDate($schedules, now()->toDateString());
+        $attendanceCards = $todayAssignments->take(3)->map(function (TeachingAssignment $assignment) use ($attendances, $latestAttendanceDate): array {
             $summary = $this->subjectAttendanceSummary($attendances, $assignment->id, $latestAttendanceDate);
 
             return [
@@ -1841,16 +1865,7 @@ class PortalDashboardController extends Controller
                 ['label' => 'Jadwal Aktif', 'value' => $schedules->count()],
                 ['label' => 'Siswa Terkait', 'value' => $students->count()],
             ],
-            'scheduleRows' => $scheduleRows->values()->map(fn(TeachingAssignment $assignment, int $index): array => [
-                'id' => $assignment->id,
-                'school_class_id' => $assignment->school_class_id,
-                'lesson_period' => $index + 1,
-                'time' => $this->timeRange($assignment->start_time, $assignment->end_time),
-                'subject' => $assignment->subject?->name ?? '-',
-                'class_name' => $assignment->schoolClass?->name ?? '-',
-                'room' => $assignment->room ?? '-',
-                'status' => $this->scheduleStatus($assignment),
-            ])->all(),
+            'scheduleRows' => $scheduleRows,
             'teacherStudents' => $students->map(fn(Student $student): array => [
                 'id' => $student->id,
                 'name' => $student->name,
@@ -2850,10 +2865,52 @@ class PortalDashboardController extends Controller
      */
     protected function todaySchedules(Collection $schedules): Collection
     {
-        $todayNumber = $this->currentScheduleDay();
+        return $this->schedulesForDate($schedules, now()->toDateString());
+    }
+
+    /**
+     * @param Collection<int, TeachingAssignment> $schedules
+     * @return Collection<int, TeachingAssignment>
+     */
+    protected function schedulesForDate(Collection $schedules, string $date): Collection
+    {
+        $scheduleDay = $this->scheduleDayFromIso(CarbonImmutable::parse($date)->dayOfWeekIso);
+
         return $schedules
-            ->filter(static fn(TeachingAssignment $assignment): bool => (int) $assignment->day_of_week === $todayNumber)
+            ->filter(static fn(TeachingAssignment $assignment): bool => (int) $assignment->day_of_week === $scheduleDay)
+            ->sortBy([['start_time', 'asc'], ['id', 'asc']])
             ->values();
+    }
+
+    /**
+     * @param Collection<int, TeachingAssignment> $schedules
+     * @return array<int, array<string, mixed>>
+     */
+    protected function scheduleRowsForDate(Collection $schedules, string $date): array
+    {
+        $dayNames = config('schedule.day_names', []);
+        $scheduleDay = $this->scheduleDayFromIso(CarbonImmutable::parse($date)->dayOfWeekIso);
+
+        return $this->schedulesForDate($schedules, $date)
+            ->map(fn(TeachingAssignment $assignment, int $index): array => [
+                'id' => $assignment->id,
+                'school_class_id' => $assignment->school_class_id,
+                'subject_id' => $assignment->subject_id,
+                'teacher_id' => $assignment->teacher_id,
+                'lesson_period' => $index + 1,
+                'day_of_week' => $assignment->day_of_week,
+                'day_name' => $dayNames[$scheduleDay] ?? 'Hari ' . ($scheduleDay + 1),
+                'start_time' => substr((string) $assignment->start_time, 0, 5),
+                'end_time' => substr((string) $assignment->end_time, 0, 5),
+                'time' => $this->timeRange($assignment->start_time, $assignment->end_time),
+                'subject' => $assignment->subject?->name ?? '-',
+                'class_name' => $assignment->schoolClass?->name ?? '-',
+                'room' => $assignment->room ?? '-',
+                'students_count' => (int) ($assignment->schoolClass?->students_count ?? $assignment->schoolClass?->students()->count() ?? 0),
+                'status' => $this->scheduleStatusForDate($assignment, $date),
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -2909,13 +2966,26 @@ class PortalDashboardController extends Controller
      */
     protected function scheduleStatus(TeachingAssignment $assignment): array
     {
+        return $this->scheduleStatusForDate($assignment, now()->toDateString());
+    }
+
+    /**
+     * @return array{label:string,tone:string}
+     */
+    protected function scheduleStatusForDate(TeachingAssignment $assignment, string $date): array
+    {
         $now = CarbonImmutable::now();
-        $todayNumber = $this->scheduleDayFromIso($now->dayOfWeekIso);
+        $targetDate = CarbonImmutable::parse($date);
+        $todayNumber = $this->scheduleDayFromIso($targetDate->dayOfWeekIso);
         $start = substr((string) $assignment->start_time, 0, 5);
         $end = substr((string) $assignment->end_time, 0, 5);
         $currentTime = $now->format('H:i');
 
         if ((int) $assignment->day_of_week !== $todayNumber) {
+            return ['label' => 'Terjadwal', 'tone' => 'neutral'];
+        }
+
+        if (! $targetDate->isSameDay($now)) {
             return ['label' => 'Terjadwal', 'tone' => 'neutral'];
         }
 

@@ -18,7 +18,7 @@ class TeachingAssignmentService
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
         return TeachingAssignment::query()
-            ->with(['teacher', 'subject', 'schoolClass'])
+            ->with(['teacher', 'subject', 'schoolClass' => fn ($query) => $query->withCount('students')])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->paginate($perPage);

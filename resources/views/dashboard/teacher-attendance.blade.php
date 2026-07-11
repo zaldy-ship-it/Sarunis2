@@ -14,8 +14,8 @@
                     <p>Pilih jadwal, tandai kehadiran siswa, lalu simpan absensi mapel.</p>
                 </div>
                 <div class="portal-teacher-attendance-hero__meta">
-                    <span>{{ count($scheduleRows) }} jadwal hari ini</span>
-                    <strong>{{ count($teacherStudents ?? []) }} siswa terkait</strong>
+                    <span data-schedule-count-label>{{ count($scheduleRows) }} jadwal hari ini</span>
+                    <strong data-schedule-student-count>{{ count($teacherStudents ?? []) }} siswa terkait</strong>
                 </div>
             </div>
 

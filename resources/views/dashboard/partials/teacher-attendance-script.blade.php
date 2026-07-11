@@ -1,6 +1,7 @@
 @php
     $teacherStudentsForJs = $teacherStudents ?? [];
     $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'alpha'];
+    $scheduleRowsForJs = $scheduleRows ?? [];
 @endphp
 
 <script>
@@ -14,6 +15,7 @@
         const csrfToken = '{{ csrf_token() }}';
         const teacherStudents = @json($teacherStudentsForJs);
         const attendanceStatuses = @json($attendanceStatusesForJs);
+        let scheduleRows = @json($scheduleRowsForJs);
 
         const escapeHtml = function (value) {
             return String(value ?? '')
@@ -30,6 +32,104 @@
 
                 return '<option value="' + escapeHtml(status) + '">' + escapeHtml(label) + '</option>';
             }).join('');
+        };
+
+        const scheduleOptionLabel = function (schedule) {
+            return [schedule.time, schedule.subject, schedule.class_name].filter(Boolean).join(' | ');
+        };
+
+        const updateScheduleMeta = function (schedules) {
+            const countLabel = document.querySelector('[data-schedule-count-label]');
+            const studentCount = document.querySelector('[data-schedule-student-count]');
+            const totalStudents = (schedules || []).reduce(function (total, schedule) {
+                return total + Number(schedule.students_count || 0);
+            }, 0);
+
+            if (countLabel) {
+                countLabel.textContent = (schedules || []).length + ' jadwal pada tanggal dipilih';
+            }
+
+            if (studentCount) {
+                studentCount.textContent = totalStudents + ' siswa pada jadwal';
+            }
+        };
+
+        const renderScheduleOptions = function (select, schedules, preferredId) {
+            if (!select) {
+                return;
+            }
+
+            if (!schedules || schedules.length === 0) {
+                select.innerHTML = '<option value="">Belum ada jadwal</option>';
+                return;
+            }
+
+            select.innerHTML = schedules.map(function (schedule) {
+                return '<option value="' + escapeHtml(schedule.id) + '" data-class-id="' + escapeHtml(schedule.school_class_id) + '">' +
+                    escapeHtml(scheduleOptionLabel(schedule)) +
+                '</option>';
+            }).join('');
+
+            const selectedExists = schedules.some(function (schedule) {
+                return String(schedule.id) === String(preferredId || '');
+            });
+
+            select.value = selectedExists ? String(preferredId) : String(schedules[0].id);
+        };
+
+        const renderScheduleCards = function (form, schedules, selectedId) {
+            const cards = form.querySelector('[data-assignment-cards]');
+
+            if (!cards) {
+                return;
+            }
+
+            if (!schedules || schedules.length === 0) {
+                cards.innerHTML = '<div class="portal-assignment-empty">Belum ada jadwal mengajar pada tanggal ini.</div>';
+                return;
+            }
+
+            cards.innerHTML = schedules.map(function (schedule) {
+                const isActive = String(schedule.id) === String(selectedId || '');
+                const status = schedule.status || {};
+
+                return '' +
+                    '<button class="portal-assignment-card' + (isActive ? ' is-active' : '') + '" type="button" data-assignment-card="' + escapeHtml(schedule.id) + '">' +
+                        '<span class="portal-assignment-card__time">' + escapeHtml(schedule.time) + '</span>' +
+                        '<span class="portal-assignment-card__main">' +
+                            '<strong>' + escapeHtml(schedule.subject) + '</strong>' +
+                            '<small>' + escapeHtml(schedule.class_name) + ' | ' + escapeHtml(schedule.students_count || 0) + ' siswa</small>' +
+                        '</span>' +
+                        '<span class="portal-assignment-card__meta">' +
+                            '<small>' + escapeHtml(schedule.day_name || '') + '</small>' +
+                            '<b>' + escapeHtml(schedule.room || '-') + '</b>' +
+                        '</span>' +
+                        '<span class="portal-assignment-card__status is-' + escapeHtml(status.tone || 'neutral') + '">' + escapeHtml(status.label || 'Terjadwal') + '</span>' +
+                    '</button>';
+            }).join('');
+        };
+
+        const fetchSchedulesForDate = async function (date) {
+            if (!date) {
+                return [];
+            }
+
+            const query = new URLSearchParams({date});
+
+            try {
+                const response = await fetch('/guru-mapel/absensi-siswa/jadwal?' + query.toString(), {
+                    headers: {'Accept': 'application/json'},
+                });
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    return [];
+                }
+
+                return Array.isArray(payload?.data?.schedules) ? payload.data.schedules : [];
+            } catch (error) {
+                return [];
+            }
         };
 
         const setFormFeedback = function (form, message, isError) {
@@ -272,13 +372,28 @@
             const dateInput = form.querySelector('[data-attendance-date]');
             let renderSequence = 0;
 
-            const render = async function () {
+            const render = async function (options = {}) {
                 const sequence = ++renderSequence;
+                const shouldRefreshSchedules = Boolean(options.refreshSchedules);
+                const date = dateInput?.value || '';
+                const previousAssignmentId = assignmentSelect?.value || '';
+
+                if (shouldRefreshSchedules) {
+                    scheduleRows = await fetchSchedulesForDate(date);
+
+                    if (sequence !== renderSequence) {
+                        return;
+                    }
+
+                    renderScheduleOptions(assignmentSelect, scheduleRows, previousAssignmentId);
+                    updateScheduleMeta(scheduleRows);
+                }
+
                 const selectedOption = assignmentSelect?.selectedOptions[0];
                 const assignmentId = assignmentSelect?.value || '';
-                const date = dateInput?.value || '';
 
                 renderRoster(form, teacherStudents, selectedOption?.dataset.classId || '');
+                renderScheduleCards(form, scheduleRows, assignmentId);
                 clearFormFeedback(form);
 
                 await checkAttendanceStatus(form, '/guru-mapel/status-absensi', date);
@@ -290,8 +405,15 @@
                 await fetchAttendanceRecords(form, assignmentId, date);
             };
 
-            assignmentSelect?.addEventListener('change', render);
-            dateInput?.addEventListener('change', render);
+            renderScheduleOptions(assignmentSelect, scheduleRows, assignmentSelect?.value || '');
+            updateScheduleMeta(scheduleRows);
+
+            assignmentSelect?.addEventListener('change', function () {
+                render({refreshSchedules: false});
+            });
+            dateInput?.addEventListener('change', function () {
+                render({refreshSchedules: true});
+            });
             render();
 
             form.addEventListener('submit', function (event) {
@@ -304,6 +426,20 @@
         });
 
         dashboard.addEventListener('click', function (event) {
+            const scheduleCard = event.target.closest('[data-assignment-card]');
+
+            if (scheduleCard) {
+                const form = scheduleCard.closest('form');
+                const select = form?.querySelector('[data-assignment-select]');
+
+                if (select) {
+                    select.value = scheduleCard.dataset.assignmentCard || '';
+                    select.dispatchEvent(new Event('change'));
+                }
+
+                return;
+            }
+
             const button = event.target.closest('[data-mark-status]');
 
             if (!button) {

@@ -25,6 +25,8 @@
             </label>
         </div>
 
+        <div class="portal-assignment-list" data-assignment-cards></div>
+
         <div class="portal-teacher-attendance-toolbar">
             <div>
                 <strong>Daftar siswa</strong>
