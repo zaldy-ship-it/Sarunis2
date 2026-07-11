@@ -4986,7 +4986,7 @@ html {
         grid-template-columns: minmax(0, 1fr) !important;
     }
 
-    .portal-profile-card {
+    .portal-dashboard-rightbar .portal-profile-card {
         display: none !important;
     }
 }
