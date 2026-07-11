@@ -5266,6 +5266,18 @@ html {
     }
 }
 
+/* Full Width Admin/Teacher/Homeroom Shortcuts Layout */
+.portal-admin-overview--full {
+    display: block !important;
+}
+
+.portal-admin-overview--full .portal-admin-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+}
+
+
 
 
 

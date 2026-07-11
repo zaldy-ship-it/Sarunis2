@@ -2684,7 +2684,7 @@ class PortalDashboardController extends Controller
                         ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/siswa/kalender-akademik'), 'active' => false],
                     ],
                 ],
-            ];,
+            ],
         };
 
         $menu[] = [

@@ -477,7 +477,7 @@
                 </section>
                 @endif
 
-                <section class="portal-admin-overview" data-dashboard-section data-section-label="Pintasan Guru Mapel">
+                <section class="portal-admin-overview portal-admin-overview--full" data-dashboard-section data-section-label="Pintasan Guru Mapel">
                     <div class="portal-admin-actions">
                         <a class="portal-panel portal-action-card" href="{{ url('/guru-mapel/jadwal-mengajar') }}" data-note-preset="Cek jadwal mengajar hari ini.">
                             <span class="portal-action-card__icon">
@@ -594,7 +594,7 @@
                     </div>
                 </section>
 
-                <section class="portal-admin-overview" data-dashboard-section data-section-label="Pintasan Wali Kelas">
+                <section class="portal-admin-overview portal-admin-overview--full" data-dashboard-section data-section-label="Pintasan Wali Kelas">
                     <div class="portal-admin-actions">
                         <a class="portal-panel portal-action-card" href="{{ url('/walikelas/absensi-kelas') }}" data-note-preset="Isi absensi kelas hari ini.">
                             <span class="portal-action-card__icon">
