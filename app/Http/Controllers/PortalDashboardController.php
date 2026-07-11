@@ -2590,6 +2590,13 @@ class PortalDashboardController extends Controller
      */
     public function menuFor(string $portalKey): array
     {
+        $user = auth()->user();
+        $isTeacher = $user && $user->teacher;
+        $isHomeroom = false;
+        if ($isTeacher) {
+            $isHomeroom = \App\Models\SchoolClass::where('homeroom_teacher_id', $user->teacher->id)->exists();
+        }
+
         $menu = match ($portalKey) {
             'admin' => [
                 [
@@ -2630,12 +2637,6 @@ class PortalDashboardController extends Controller
                         ['label' => 'Rekap Absen', 'icon' => 'chart', 'href' => url('/guru-mapel/rekap-absensi'), 'active' => false],
                     ],
                 ],
-                [
-                    'title' => 'Informasi',
-                    'items' => [
-                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/guru-mapel/kalender-akademik'), 'active' => false],
-                    ],
-                ],
             ],
             'walikelas' => [
                 [
@@ -2646,12 +2647,6 @@ class PortalDashboardController extends Controller
                         ['label' => 'Absensi Kelas', 'icon' => 'attendance', 'href' => url('/walikelas/absensi-kelas'), 'active' => false],
                         ['label' => 'Rekap Absensi', 'icon' => 'recap', 'href' => url('/walikelas/rekap-absensi'), 'active' => false],
                         ['label' => 'Catatan Siswa', 'icon' => 'note', 'href' => url('/walikelas/catatan-siswa'), 'active' => false],
-                    ],
-                ],
-                [
-                    'title' => 'Informasi',
-                    'items' => [
-                        ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/walikelas/kalender-akademik'), 'active' => false],
                     ],
                 ],
             ],
@@ -2686,6 +2681,39 @@ class PortalDashboardController extends Controller
                 ],
             ],
         };
+
+        if ($isTeacher && $isHomeroom) {
+            if ($portalKey === 'guru-mapel') {
+                $menu[] = [
+                    'title' => 'Wali Kelas',
+                    'items' => [
+                        ['label' => 'Data Siswa', 'icon' => 'students', 'href' => url('/walikelas/data-siswa'), 'active' => false],
+                        ['label' => 'Absensi Kelas', 'icon' => 'attendance', 'href' => url('/walikelas/absensi-kelas'), 'active' => false],
+                        ['label' => 'Rekap Absensi', 'icon' => 'recap', 'href' => url('/walikelas/rekap-absensi'), 'active' => false],
+                        ['label' => 'Catatan Siswa', 'icon' => 'note', 'href' => url('/walikelas/catatan-siswa'), 'active' => false],
+                    ],
+                ];
+            } elseif ($portalKey === 'walikelas') {
+                $menu[] = [
+                    'title' => 'Guru Mapel',
+                    'items' => [
+                        ['label' => 'Jadwal Mengajar', 'icon' => 'schedule', 'href' => url('/guru-mapel/jadwal-mengajar'), 'active' => false],
+                        ['label' => 'Tambah Absen', 'icon' => 'attendance', 'href' => url('/guru-mapel/absensi-siswa/tambah'), 'active' => false],
+                        ['label' => 'Daftar Absen', 'icon' => 'recap', 'href' => url('/guru-mapel/absensi-siswa/daftar'), 'active' => false],
+                        ['label' => 'Rekap Absen', 'icon' => 'chart', 'href' => url('/guru-mapel/rekap-absensi'), 'active' => false],
+                    ],
+                ];
+            }
+        }
+
+        if ($portalKey === 'guru-mapel' || $portalKey === 'walikelas') {
+            $menu[] = [
+                'title' => 'Informasi',
+                'items' => [
+                    ['label' => 'Kalender Akademik', 'icon' => 'calendar', 'href' => url('/' . $portalKey . '/kalender-akademik'), 'active' => false],
+                ],
+            ];
+        }
 
         $menu[] = [
             'title' => 'Pengaturan',

@@ -2315,6 +2315,7 @@ body.portal-dashboard-body {
     border-radius: 0.8rem;
     font-size: 0.84rem;
     font-weight: 800;
+    white-space: nowrap;
 }
 
 .portal-badge.is-success {
@@ -4989,6 +4990,17 @@ html {
     .portal-dashboard-rightbar .portal-profile-card {
         display: none !important;
     }
+
+    .portal-schedule-card-time {
+        font-size: 0.85rem !important;
+        padding: 0.25rem 0.55rem !important;
+    }
+    
+    .portal-badge {
+        font-size: 0.76rem !important;
+        padding: 0.3rem 0.6rem !important;
+        min-height: 1.8rem !important;
+    }
 }
 
 /* Schedule Card Items */
@@ -5016,6 +5028,7 @@ html {
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+    flex-wrap: wrap;
     width: 100%;
 }
 
@@ -5023,6 +5036,7 @@ html {
     display: flex;
     align-items: center;
     gap: 0.55rem;
+    flex-wrap: wrap;
 }
 
 .portal-schedule-card-time {
@@ -5033,6 +5047,7 @@ html {
     padding: 0.35rem 0.75rem;
     border-radius: 8px;
     border: 1px solid rgba(34, 152, 207, 0.24);
+    white-space: nowrap;
 }
 
 .portal-schedule-card-body {
