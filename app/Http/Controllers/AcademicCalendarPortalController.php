@@ -49,7 +49,7 @@ class AcademicCalendarPortalController extends Controller
         }
 
         $menuSections = app(PortalDashboardController::class)->menuForPortalPage($portalKey, 'Kalender Akademik');
-        $semesterLock = $this->semesterLockService->lockFor($filters['academic_year'], $filters['semester']);
+        $semesterLock = $this->semesterLockService->get($filters['academic_year'], $filters['semester']);
 
         // Divide events into lists
         $upcomingEvents = $events->filter(fn($event) => $event->end_date >= now()->toDateString())->sortBy('start_date');

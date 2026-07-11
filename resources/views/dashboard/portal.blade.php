@@ -350,19 +350,23 @@
                         @forelse ($scheduleRows as $row)
                         <div class="portal-schedule-card-item" data-search-item>
                             <div class="portal-schedule-card-header">
-                                <span class="portal-schedule-card-time">{{ $row['time'] }}</span>
-                                <span class="portal-badge is-primary">Jam Ke-{{ $row['lesson_period'] }}</span>
-                                <span class="portal-badge is-{{ $row['status']['tone'] }} ms-auto">{{ $row['status']['label'] }}</span>
+                                <div class="portal-schedule-card-header-left">
+                                    <span class="portal-schedule-card-time">{{ $row['time'] }}</span>
+                                    <span class="portal-badge is-primary">Jam Ke-{{ $row['lesson_period'] }}</span>
+                                </div>
+                                <span class="portal-badge is-{{ $row['status']['tone'] }}">{{ $row['status']['label'] }}</span>
                             </div>
                             <div class="portal-schedule-card-body">
                                 <h4 class="portal-schedule-card-subject">{{ $row['subject'] }}</h4>
                                 <div class="portal-schedule-card-meta">
-                                    <span class="portal-schedule-card-meta-item">
-                                        <strong>Kelas:</strong> {{ $row['class_name'] }}
-                                    </span>
-                                    <span class="portal-schedule-card-meta-item">
-                                        <strong>Ruang:</strong> {{ $row['room'] }}
-                                    </span>
+                                    <div class="portal-schedule-card-meta-item">
+                                        <span class="portal-schedule-card-meta-label">Kelas</span>
+                                        <span class="portal-schedule-card-meta-value">{{ $row['class_name'] }}</span>
+                                    </div>
+                                    <div class="portal-schedule-card-meta-item">
+                                        <span class="portal-schedule-card-meta-label">Ruang</span>
+                                        <span class="portal-schedule-card-meta-value">{{ $row['room'] }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

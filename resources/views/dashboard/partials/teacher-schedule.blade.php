@@ -43,14 +43,16 @@
                             <h3>{{ $row['subject'] }}</h3>
                             <p>{{ $row['class_name'] }}</p>
                         </div>
-                        <span class="portal-badge is-{{ $row['status']['tone'] }}">{{ $row['status']['label'] }}</span>
                     </div>
                     <div class="portal-teacher-schedule-card__meta">
-                        <span>Ruang {{ $row['room'] }}</span>
+                        <span>{{ $row['room'] }}</span>
                         <span>{{ $activeAcademicYear }} | {{ ucfirst($activeSemester) }}</span>
                     </div>
                 </div>
-                <a class="portal-teacher-schedule-card__link" href="{{ $actionUrls['attendance'] }}">Absensi</a>
+                <div class="portal-teacher-schedule-card__actions">
+                    <span class="portal-badge is-{{ $row['status']['tone'] }}">{{ $row['status']['label'] }}</span>
+                    <a class="portal-teacher-schedule-card__link" href="{{ $actionUrls['attendance'] }}">Absensi</a>
+                </div>
             </article>
         @empty
             <div class="portal-teacher-schedule-empty">
