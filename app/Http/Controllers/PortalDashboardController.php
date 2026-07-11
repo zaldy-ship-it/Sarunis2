@@ -2591,10 +2591,10 @@ class PortalDashboardController extends Controller
     public function menuFor(string $portalKey): array
     {
         $user = auth()->user();
-        $isTeacher = $user && $user->teacher;
+        $isTeacher = $user && $user->teacherProfile;
         $isHomeroom = false;
         if ($isTeacher) {
-            $isHomeroom = \App\Models\SchoolClass::where('homeroom_teacher_id', $user->teacher->id)->exists();
+            $isHomeroom = \App\Models\SchoolClass::where('homeroom_teacher_id', $user->teacherProfile->id)->exists();
         }
 
         $menu = match ($portalKey) {
