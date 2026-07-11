@@ -27,7 +27,7 @@ class GuruKelasScheduleSeeder extends Seeder
                 'name' => 'Guru Kelas Demo',
                 'password' => 'password123',
                 'email_verified_at' => now(),
-                'roles' => [UserRole::GURU_MAPEL->value, UserRole::WALIKELAS->value],
+                'roles' => [UserRole::GURU_MAPEL->value],
             ]
         );
 
