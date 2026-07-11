@@ -2177,6 +2177,125 @@ body.portal-dashboard-body {
     color: #667b8d;
 }
 
+.portal-weekly-schedule {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: #eef9ff;
+}
+
+.portal-weekly-schedule .portal-section-heading {
+    margin-bottom: 0;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(34, 152, 207, 0.16);
+}
+
+.portal-weekly-schedule__day {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.portal-weekly-schedule__day-title {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.2rem;
+    margin: 0;
+    padding: 0.35rem 0.75rem 0.35rem 0.45rem;
+    border-radius: 8px;
+    background: #dceeff;
+    color: #31566d;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.portal-weekly-schedule__day-title span {
+    display: inline-flex;
+    min-width: 2.15rem;
+    min-height: 1.55rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f83bb;
+    font-size: 0.74rem;
+    font-weight: 900;
+}
+
+.portal-weekly-schedule__list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.portal-weekly-schedule__item {
+    display: grid;
+    grid-template-columns: minmax(7.2rem, 0.8fr) minmax(0, 1.6fr) minmax(5.6rem, 0.55fr);
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.85rem;
+    border: 1px solid rgba(34, 152, 207, 0.18);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(16, 54, 76, 0.06);
+}
+
+.portal-weekly-schedule__time,
+.portal-weekly-schedule__main,
+.portal-weekly-schedule__period {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.portal-weekly-schedule__time span,
+.portal-weekly-schedule__period span {
+    color: #6a8192;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.portal-weekly-schedule__time strong {
+    color: #173d55;
+    font-size: 0.96rem;
+    font-weight: 850;
+}
+
+.portal-weekly-schedule__main strong {
+    overflow: hidden;
+    color: #10364c;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.portal-weekly-schedule__main span {
+    color: #5c7183;
+    font-size: 0.86rem;
+    font-weight: 800;
+}
+
+.portal-weekly-schedule__period {
+    justify-items: center;
+}
+
+.portal-weekly-schedule__period strong {
+    display: inline-flex;
+    width: 100%;
+    min-height: 2.1rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(34, 152, 207, 0.13);
+    color: #0f83bb;
+    font-weight: 900;
+}
+
 .portal-badge {
     display: inline-flex;
     align-items: center;
@@ -2642,18 +2761,27 @@ body.portal-dashboard-body {
 
 .portal-form-grid span {
     color: #4d6578;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 800;
+    line-height: 1.2;
 }
 
 .portal-form-grid .form-control,
 .portal-form-grid .form-select,
 .portal-roster-row .form-control,
 .portal-roster-row .form-select {
-    min-height: 2.8rem;
+    min-height: 3rem;
     border-color: rgba(34, 152, 207, 0.28);
     border-radius: 8px;
     color: #173d55;
+    font-weight: 650;
+}
+
+.portal-form-grid .form-select {
+    padding-right: 2.35rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .portal-form-grid .form-control:focus,
@@ -2779,7 +2907,7 @@ body.portal-dashboard-body {
 }
 
 .portal-teacher-attendance-card {
-    gap: 1.25rem;
+    gap: 1.1rem;
     padding: 1.25rem;
     border-color: rgba(34, 152, 207, 0.2);
     background: rgba(255, 255, 255, 0.94);
@@ -2787,12 +2915,21 @@ body.portal-dashboard-body {
 }
 
 .portal-teacher-attendance-card__head {
-    padding-bottom: 1rem;
+    align-items: center;
+    margin-bottom: 0;
+    padding-bottom: 0.95rem;
     border-bottom: 1px solid rgba(34, 152, 207, 0.14);
 }
 
 .portal-teacher-attendance-card__head h2 {
-    font-size: 1.28rem;
+    font-size: 1.24rem;
+    line-height: 1.2;
+}
+
+.portal-teacher-attendance-card__head p {
+    margin-top: 0.25rem;
+    max-width: 42rem;
+    line-height: 1.5;
 }
 
 .portal-teacher-attendance-card__count {
@@ -2808,10 +2945,27 @@ body.portal-dashboard-body {
 }
 
 .portal-teacher-attendance-controls {
+    gap: 0.9rem;
     padding: 1rem;
     border: 1px solid rgba(34, 152, 207, 0.16);
     border-radius: 8px;
     background: #f7fcff;
+}
+
+.portal-teacher-attendance-controls label {
+    align-content: start;
+}
+
+.portal-teacher-attendance-controls .form-control,
+.portal-teacher-attendance-controls .form-select {
+    width: 100%;
+    background-color: #ffffff;
+    box-shadow: inset 0 1px 0 rgba(16, 54, 76, 0.03);
+}
+
+.portal-teacher-attendance-controls .form-control:hover,
+.portal-teacher-attendance-controls .form-select:hover {
+    border-color: rgba(34, 152, 207, 0.46);
 }
 
 .portal-assignment-list {
@@ -3512,6 +3666,66 @@ body.portal-dashboard-body {
         gap: 0.55rem;
     }
 
+    .portal-weekly-schedule {
+        gap: 0.9rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 1rem;
+    }
+
+    .portal-weekly-schedule .portal-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding-bottom: 0.8rem;
+    }
+
+    .portal-weekly-schedule .portal-section-heading h2 {
+        font-size: 1.08rem;
+        line-height: 1.25;
+    }
+
+    .portal-weekly-schedule .portal-section-heading p {
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .portal-weekly-schedule__day-title {
+        min-height: 2.05rem;
+        font-size: 0.84rem;
+    }
+
+    .portal-weekly-schedule__item {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "main period"
+            "time time";
+        align-items: start;
+        gap: 0.7rem;
+        padding: 0.8rem;
+    }
+
+    .portal-weekly-schedule__main {
+        grid-area: main;
+    }
+
+    .portal-weekly-schedule__main strong {
+        white-space: normal;
+    }
+
+    .portal-weekly-schedule__period {
+        grid-area: period;
+        min-width: 4.25rem;
+    }
+
+    .portal-weekly-schedule__time {
+        grid-area: time;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        padding-top: 0.65rem;
+        border-top: 1px solid rgba(34, 152, 207, 0.14);
+    }
+
     .portal-student-form__grid {
         grid-template-columns: 1fr;
         gap: 0.85rem;
@@ -3998,6 +4212,45 @@ html {
     .portal-teacher-attendance-hero__meta {
         min-width: 0;
         text-align: left;
+    }
+
+    .portal-teacher-attendance-card {
+        gap: 0.95rem;
+        padding: 1rem;
+        border-radius: 1rem;
+    }
+
+    .portal-teacher-attendance-card__head {
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding-bottom: 0.85rem;
+    }
+
+    .portal-teacher-attendance-card__head h2 {
+        font-size: 1.08rem;
+    }
+
+    .portal-teacher-attendance-card__head p {
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .portal-teacher-attendance-card__count {
+        min-height: 2rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.78rem;
+    }
+
+    .portal-teacher-attendance-controls {
+        gap: 0.8rem;
+        padding: 0.85rem;
+    }
+
+    .portal-teacher-attendance-controls .form-control,
+    .portal-teacher-attendance-controls .form-select {
+        min-height: 2.75rem;
+        font-size: 0.92rem;
     }
 
     .portal-teacher-attendance-actions {

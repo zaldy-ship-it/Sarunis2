@@ -362,16 +362,17 @@
                     </div>
                 </section>
 
-                <section class="portal-panel portal-workbench-card" id="absensi-siswa" data-dashboard-section data-section-label="Presensi Belum Diisi">
-                    <div class="portal-section-heading">
+                <section class="portal-panel portal-workbench-card portal-teacher-attendance-card" id="absensi-siswa" data-dashboard-section data-section-label="Presensi Belum Diisi">
+                    <div class="portal-section-heading portal-teacher-attendance-card__head">
                         <div>
                             <h2>Presensi Belum Diisi</h2>
                             <p>Pilih jadwal, cek daftar siswa, lalu simpan status kehadiran.</p>
                         </div>
+                        <span class="portal-teacher-attendance-card__count">{{ count($teacherStudents ?? []) }} siswa</span>
                     </div>
 
                     <form class="portal-attendance-form" data-subject-attendance-form>
-                        <div class="portal-form-grid">
+                        <div class="portal-form-grid portal-teacher-attendance-controls">
                             <label>
                                 <span>Jadwal</span>
                                 <select class="form-select" data-assignment-select required>
@@ -388,10 +389,30 @@
                             </label>
                         </div>
 
+                        <div class="portal-assignment-list" data-assignment-cards></div>
+
+                        <div class="portal-teacher-attendance-toolbar">
+                            <div>
+                                <strong>Daftar siswa</strong>
+                                <span data-roster-summary>Pilih jadwal untuk menampilkan siswa.</span>
+                            </div>
+                            <div class="portal-teacher-attendance-actions">
+                                <button class="btn btn-light btn-sm" type="button" data-mark-status="hadir">Hadir Semua</button>
+                                <button class="btn btn-light btn-sm" type="button" data-mark-status="izin">Izin Semua</button>
+                                <button class="btn btn-light btn-sm" type="button" data-mark-status="sakit">Sakit Semua</button>
+                            </div>
+                        </div>
+
                         <div class="portal-attendance-roster" data-attendance-students></div>
                         <div class="portal-form-feedback d-none" data-attendance-feedback></div>
 
-                        <button class="btn btn-primary portal-form-submit" type="submit">Simpan Absensi Mapel</button>
+                        <div class="portal-teacher-attendance-submit">
+                            <div>
+                                <strong>Siap disimpan?</strong>
+                                <span>Pastikan status dan catatan siswa sudah benar.</span>
+                            </div>
+                            <button class="btn btn-primary portal-form-submit" type="submit">Simpan Absensi Mapel</button>
+                        </div>
                     </form>
                 </section>
 
@@ -1061,6 +1082,7 @@
 $teacherStudentsForJs = $teacherStudents ?? [];
 $homeroomStudentsForJs = $homeroomStudents ?? [];
 $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'alpha'];
+$scheduleRowsForJs = $scheduleRows ?? [];
 @endphp
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -1081,6 +1103,7 @@ $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'al
         const teacherStudents = @json($teacherStudentsForJs);
         const homeroomStudents = @json($homeroomStudentsForJs);
         const attendanceStatuses = @json($attendanceStatusesForJs);
+        let scheduleRows = @json($scheduleRowsForJs);
 
         const setActiveNav = function(id) {
             navLinks.forEach(function(link) {
@@ -1405,6 +1428,88 @@ $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'al
             }).join('');
         };
 
+        const scheduleOptionLabel = function(schedule) {
+            return [schedule.time, schedule.subject, schedule.class_name].filter(Boolean).join(' | ');
+        };
+
+        const renderScheduleOptions = function(select, schedules, preferredId) {
+            if (!select) {
+                return;
+            }
+
+            if (!schedules || schedules.length === 0) {
+                select.innerHTML = '<option value="">Belum ada jadwal</option>';
+                return;
+            }
+
+            select.innerHTML = schedules.map(function(schedule) {
+                return '<option value="' + escapeHtml(schedule.id) + '" data-class-id="' + escapeHtml(schedule.school_class_id) + '">' +
+                    escapeHtml(scheduleOptionLabel(schedule)) +
+                    '</option>';
+            }).join('');
+
+            const selectedExists = schedules.some(function(schedule) {
+                return String(schedule.id) === String(preferredId || '');
+            });
+
+            select.value = selectedExists ? String(preferredId) : String(schedules[0].id);
+        };
+
+        const renderScheduleCards = function(form, schedules, selectedId) {
+            const cards = form.querySelector('[data-assignment-cards]');
+
+            if (!cards) {
+                return;
+            }
+
+            if (!schedules || schedules.length === 0) {
+                cards.innerHTML = '<div class="portal-assignment-empty">Belum ada jadwal mengajar pada tanggal ini.</div>';
+                return;
+            }
+
+            cards.innerHTML = schedules.map(function(schedule) {
+                const isActive = String(schedule.id) === String(selectedId || '');
+                const status = schedule.status || {};
+
+                return '' +
+                    '<button class="portal-assignment-card' + (isActive ? ' is-active' : '') + '" type="button" data-assignment-card="' + escapeHtml(schedule.id) + '">' +
+                    '<span class="portal-assignment-card__time">' + escapeHtml(schedule.time) + '</span>' +
+                    '<span class="portal-assignment-card__main">' +
+                    '<strong>' + escapeHtml(schedule.subject) + '</strong>' +
+                    '<small>' + escapeHtml(schedule.class_name) + ' | ' + escapeHtml(schedule.students_count || 0) + ' siswa</small>' +
+                    '</span>' +
+                    '<span class="portal-assignment-card__meta">' +
+                    '<small>' + escapeHtml(schedule.day_name || '') + '</small>' +
+                    '<b>' + escapeHtml(schedule.room || '-') + '</b>' +
+                    '</span>' +
+                    '<span class="portal-assignment-card__status is-' + escapeHtml(status.tone || 'neutral') + '">' + escapeHtml(status.label || 'Terjadwal') + '</span>' +
+                    '</button>';
+            }).join('');
+        };
+
+        const fetchSchedulesForDate = async function(date) {
+            if (!date || portalKey !== 'guru-mapel') {
+                return [];
+            }
+
+            try {
+                const response = await fetch('/guru-mapel/absensi-siswa/jadwal?' + new URLSearchParams({date}).toString(), {
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                });
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    return [];
+                }
+
+                return Array.isArray(payload?.data?.schedules) ? payload.data.schedules : [];
+            } catch (error) {
+                return [];
+            }
+        };
+
         const renderRoster = function(form, students, classId) {
             const roster = form.querySelector('[data-attendance-students]');
             const summary = form.querySelector('[data-roster-summary]');
@@ -1638,13 +1743,27 @@ $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'al
             const dateInput = form.querySelector('[data-attendance-date]');
             let renderSequence = 0;
 
-            const render = async function() {
+            const render = async function(options = {}) {
                 const sequence = ++renderSequence;
+                const shouldRefreshSchedules = Boolean(options.refreshSchedules);
+                const date = dateInput?.value || '';
+                const previousAssignmentId = assignmentSelect?.value || '';
+
+                if (shouldRefreshSchedules) {
+                    scheduleRows = await fetchSchedulesForDate(date);
+
+                    if (sequence !== renderSequence) {
+                        return;
+                    }
+
+                    renderScheduleOptions(assignmentSelect, scheduleRows, previousAssignmentId);
+                }
+
                 const selectedOption = assignmentSelect?.selectedOptions[0];
                 const assignmentId = assignmentSelect?.value || '';
-                const date = dateInput?.value || '';
 
                 renderRoster(form, teacherStudents, selectedOption?.dataset.classId || '');
+                renderScheduleCards(form, scheduleRows, assignmentId);
                 clearFormFeedback(form);
                 await checkAttendanceStatus(form, '/guru-mapel/status-absensi', date);
 
@@ -1658,8 +1777,17 @@ $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'al
                 });
             };
 
-            assignmentSelect?.addEventListener('change', render);
-            dateInput?.addEventListener('change', render);
+            renderScheduleOptions(assignmentSelect, scheduleRows, assignmentSelect?.value || '');
+            assignmentSelect?.addEventListener('change', function() {
+                render({
+                    refreshSchedules: false
+                });
+            });
+            dateInput?.addEventListener('change', function() {
+                render({
+                    refreshSchedules: true
+                });
+            });
             render();
 
             form.addEventListener('submit', function(event) {
@@ -1709,6 +1837,20 @@ $attendanceStatusesForJs = $attendanceStatuses ?? ['hadir', 'izin', 'sakit', 'al
         });
 
         dashboard.addEventListener('click', function(event) {
+            const scheduleCard = event.target.closest('[data-assignment-card]');
+
+            if (scheduleCard) {
+                const form = scheduleCard.closest('form');
+                const select = form?.querySelector('[data-assignment-select]');
+
+                if (select) {
+                    select.value = scheduleCard.dataset.assignmentCard || '';
+                    select.dispatchEvent(new Event('change'));
+                }
+
+                return;
+            }
+
             const button = event.target.closest('[data-mark-status]');
 
             if (!button) {

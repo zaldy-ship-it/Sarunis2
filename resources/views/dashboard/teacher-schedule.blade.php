@@ -17,47 +17,43 @@
 
             @include('dashboard.partials.teacher-schedule')
 
-            {{-- Tabel Jadwal Lengkap Per Hari --}}
             @if (!empty($allScheduleRows))
-            <section class="portal-panel portal-schedule-full-table" style="margin-top: 24px;">
-                <div class="portal-section-heading">
-                    <div>
-                        <h2>Jadwal Mengajar Lengkap</h2>
-                        <p>Seluruh jadwal mengajar dalam seminggu, dikelompokkan per hari.</p>
+                <section class="portal-panel portal-weekly-schedule" data-dashboard-section data-section-label="Jadwal Mengajar Lengkap">
+                    <div class="portal-section-heading">
+                        <div>
+                            <h2>Jadwal Mengajar Lengkap</h2>
+                            <p>Seluruh jadwal mengajar dalam seminggu, dikelompokkan per hari.</p>
+                        </div>
                     </div>
-                </div>
 
-                @foreach ($allScheduleRows as $dayGroup)
-                <div class="portal-schedule-day-group" style="margin-bottom: 20px;">
-                    <h3 class="portal-schedule-day-label" style="font-size: 1rem; font-weight: 600; color: var(--portal-text-primary, #fff); padding: 10px 16px; background: rgba(115, 103, 240, 0.12); border-radius: 8px; margin-bottom: 8px; display: inline-block;">
-                        📅 {{ $dayGroup['day'] }}
-                    </h3>
+                    @foreach ($allScheduleRows as $dayGroup)
+                        <div class="portal-weekly-schedule__day">
+                            <h3 class="portal-weekly-schedule__day-title">
+                                <span>{{ mb_substr($dayGroup['day'], 0, 3) }}</span>
+                                {{ $dayGroup['day'] }}
+                            </h3>
 
-                    <div class="table-responsive">
-                        <table class="table portal-table mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">Kelas</th>
-                                    <th style="width: 80px;">Jam Ke-</th>
-                                    <th style="width: 140px;">Jam Mapel</th>
-                                    <th>Mata Pelajaran</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                            <div class="portal-weekly-schedule__list">
                                 @foreach ($dayGroup['items'] as $item)
-                                <tr data-search-item>
-                                    <td>{{ $item['class_name'] }}</td>
-                                    <td><span class="portal-badge is-primary">{{ $item['lesson_period'] }}</span></td>
-                                    <td>{{ $item['time'] }}</td>
-                                    <td><strong>{{ $item['subject'] }}</strong></td>
-                                </tr>
+                                    <article class="portal-weekly-schedule__item" data-search-item>
+                                        <div class="portal-weekly-schedule__time">
+                                            <span>Jam Mapel</span>
+                                            <strong>{{ $item['time'] }}</strong>
+                                        </div>
+                                        <div class="portal-weekly-schedule__main">
+                                            <strong>{{ $item['subject'] }}</strong>
+                                            <span>{{ $item['class_name'] }}</span>
+                                        </div>
+                                        <div class="portal-weekly-schedule__period">
+                                            <span>Jam Ke-</span>
+                                            <strong>{{ $item['lesson_period'] }}</strong>
+                                        </div>
+                                    </article>
                                 @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                @endforeach
-            </section>
+                            </div>
+                        </div>
+                    @endforeach
+                </section>
             @endif
         </main>
     </div>
