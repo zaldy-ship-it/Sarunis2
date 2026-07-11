@@ -4,7 +4,7 @@
     $roomCount = collect($scheduleRows)->pluck('room')->filter(fn ($room) => $room !== '-')->unique()->count();
     $actionUrls = array_merge([
         'attendance' => url('/guru-mapel/absensi-siswa'),
-        'students' => url('/guru-mapel/data-siswa'),
+        'students' => null,
         'recap' => url('/guru-mapel/rekap-absensi'),
     ], $scheduleActionUrls ?? []);
 @endphp
@@ -24,7 +24,9 @@
 
     <div class="portal-teacher-schedule-actions">
         <a class="btn btn-primary btn-sm" href="{{ $actionUrls['attendance'] }}">Isi Absensi</a>
+        @if (!empty($actionUrls['students']))
         <a class="btn btn-outline-primary btn-sm" href="{{ $actionUrls['students'] }}">Lihat Siswa</a>
+        @endif
         <a class="btn btn-outline-primary btn-sm" href="{{ $actionUrls['recap'] }}">Rekap Absensi</a>
     </div>
 

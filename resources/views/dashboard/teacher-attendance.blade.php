@@ -20,6 +20,13 @@
             </div>
 
             @include('dashboard.partials.teacher-attendance-form')
+
+            @include('dashboard.partials.teacher-attendance-recap', [
+                'recapSectionId' => 'absensi-mapel-tercatat',
+                'recapSectionLabel' => 'Absensi Mapel Tercatat',
+                'recapTitle' => 'Absensi yang Telah Dilakukan',
+                'recapDescription' => 'Daftar absensi mapel yang sudah tersimpan untuk jadwal mengajar aktif.',
+            ])
         </main>
     </div>
 @endsection

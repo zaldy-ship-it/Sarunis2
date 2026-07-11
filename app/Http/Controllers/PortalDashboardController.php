@@ -1001,15 +1001,15 @@ class PortalDashboardController extends Controller
         $teacher = $this->teacherFromRequest($request);
         $students = $request->user()->hasRole('admin')
             ? Student::query()->with('schoolClass')->orderBy('name')->get()
-            : $this->teachingAssignmentService->studentsForTeacher($teacher);
+            : $this->schoolClassService->studentsForHomeroomTeacher($teacher);
 
         return view('dashboard.portal-students', $this->portalStudentDirectoryData(
             $request,
-            'guru-mapel',
-            'Data Siswa Diajar',
-            'Lihat siswa per kelas yang Anda ajar, cek kontak dasar, dan lanjutkan ke absensi tanpa masuk menu admin.',
+            'walikelas',
+            'Data Siswa Perwalian',
+            'Lihat siswa per kelas perwalian, cek kontak dasar, dan lanjutkan ke absensi kelas dari satu halaman.',
             $students,
-            'Siswa diajar',
+            'Siswa perwalian',
         ));
     }
 
@@ -1091,7 +1091,7 @@ class PortalDashboardController extends Controller
             ->groupBy('day_of_week')
             ->map(function (Collection $daySchedules, int $day) use ($dayNames): array {
                 return [
-                    'day' => $dayNames[$day - 1] ?? 'Hari ' . $day,
+                    'day' => $dayNames[$day] ?? 'Hari ' . ($day + 1),
                     'day_of_week' => $day,
                     'items' => $daySchedules->values()->map(fn(TeachingAssignment $assignment, int $index): array => [
                         'lesson_period' => $index + 1,
@@ -1869,7 +1869,6 @@ class PortalDashboardController extends Controller
             'akses' => [
                 'melakukan absensi mapel',
                 'melihat jadwal ajar',
-                'melihat siswa kelas yang diajar',
                 'rekap absen mapel',
             ],
         ];
@@ -2297,7 +2296,7 @@ class PortalDashboardController extends Controller
             $homeroomTeacherName = $class?->homeroomTeacher?->name ?? 'Belum ditentukan';
 
             // Get schedules today
-            $dayOfWeek = now()->dayOfWeekIso; // 1-7
+            $dayOfWeek = $this->currentScheduleDay();
             $schedules = TeachingAssignment::query()
                 ->where('school_class_id', $class?->id)
                 ->where('day_of_week', $dayOfWeek)
@@ -2491,9 +2490,7 @@ class PortalDashboardController extends Controller
                     'items' => [
                         ['label' => 'Beranda', 'icon' => 'home', 'href' => '#beranda', 'active' => true],
                         ['label' => 'Jadwal Mengajar', 'icon' => 'schedule', 'href' => url('/guru-mapel/jadwal-mengajar'), 'active' => false],
-                        ['label' => 'Data Siswa', 'icon' => 'students', 'href' => url('/guru-mapel/data-siswa'), 'active' => false],
                         ['label' => 'Absensi Siswa', 'icon' => 'attendance', 'href' => url('/guru-mapel/absensi-siswa'), 'active' => false],
-                        ['label' => 'Absensi Kelas', 'icon' => 'attendance', 'href' => url('/guru-mapel/absensi-kelas'), 'active' => false],
                         ['label' => 'Rekap Absensi', 'icon' => 'recap', 'href' => url('/guru-mapel/rekap-absensi'), 'active' => false],
                     ],
                 ],
@@ -2807,7 +2804,7 @@ class PortalDashboardController extends Controller
      */
     protected function todaySchedules(Collection $schedules): Collection
     {
-        $todayNumber = CarbonImmutable::now()->dayOfWeekIso;
+        $todayNumber = $this->currentScheduleDay();
         $todaySchedules = $schedules
             ->filter(static fn(TeachingAssignment $assignment): bool => (int) $assignment->day_of_week === $todayNumber)
             ->values();
@@ -2871,7 +2868,7 @@ class PortalDashboardController extends Controller
     protected function scheduleStatus(TeachingAssignment $assignment): array
     {
         $now = CarbonImmutable::now();
-        $todayNumber = $now->dayOfWeekIso;
+        $todayNumber = $this->scheduleDayFromIso($now->dayOfWeekIso);
         $start = substr((string) $assignment->start_time, 0, 5);
         $end = substr((string) $assignment->end_time, 0, 5);
         $currentTime = $now->format('H:i');
@@ -2889,5 +2886,15 @@ class PortalDashboardController extends Controller
         }
 
         return ['label' => 'Saat Ini', 'tone' => 'primary'];
+    }
+
+    protected function currentScheduleDay(): int
+    {
+        return $this->scheduleDayFromIso(CarbonImmutable::now()->dayOfWeekIso);
+    }
+
+    protected function scheduleDayFromIso(int $dayOfWeekIso): int
+    {
+        return $dayOfWeekIso - 1;
     }
 }

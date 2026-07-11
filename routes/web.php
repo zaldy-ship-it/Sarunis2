@@ -111,7 +111,6 @@ Route::prefix('admin')->middleware('role:admin')->group(function () {
 
 Route::prefix('guru-mapel')->middleware('role:guru_mapel')->group(function () {
     Route::get('/dashboard', [PortalDashboardController::class, 'teacher']);
-    Route::get('/data-siswa', [PortalDashboardController::class, 'teacherStudentsPage']);
     Route::get('/jadwal-mengajar', [PortalDashboardController::class, 'teacherSchedulePage']);
     Route::get('/absensi-siswa', [PortalDashboardController::class, 'teacherAttendancePage']);
     Route::get('/rekap-absensi', [PortalDashboardController::class, 'teacherAttendanceRecapPage']);
@@ -124,9 +123,6 @@ Route::prefix('guru-mapel')->middleware('role:guru_mapel')->group(function () {
     Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
     Route::get('/status-absensi', [AcademicCalendarPortalController::class, 'attendanceStatus']);
     Route::post('/absensi-mapel', [SubjectAttendanceController::class, 'store']);
-    Route::get('/absensi-kelas', [PortalDashboardController::class, 'teacherClassAttendancePage']);
-    Route::get('/rekap-absensi-kelas', [ClassAttendanceController::class, 'index']);
-    Route::post('/absensi-kelas', [ClassAttendanceController::class, 'store']);
 });
 
 Route::prefix('walikelas')->middleware('homeroom-class')->group(function () {

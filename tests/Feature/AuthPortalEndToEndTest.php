@@ -233,13 +233,20 @@ class AuthPortalEndToEndTest extends TestCase
             ->assertOk()
             ->assertSee('Isi Absensi Mapel')
             ->assertSee('Simpan Absensi Mapel')
-            ->assertSee('/guru-mapel/data-siswa', false)
+            ->assertDontSee('/guru-mapel/data-siswa', false)
+            ->assertDontSee('/guru-mapel/absensi-kelas', false)
             ->assertDontSee('/admin/pengaturan', false);
 
         $this->get('/guru-mapel/data-siswa')
+            ->assertNotFound();
+
+        $this->get('/guru-mapel/absensi-kelas')
+            ->assertNotFound();
+
+        $this->get('/guru-mapel/absensi-siswa')
             ->assertOk()
-            ->assertSee('Data Siswa Diajar')
-            ->assertSee('Andi Saputra');
+            ->assertSee('Isi Absensi Mapel')
+            ->assertSee('Absensi yang Telah Dilakukan');
 
         $this->getJson('/guru-mapel/jadwal-ajar')
             ->assertOk()

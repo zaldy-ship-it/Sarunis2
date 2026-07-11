@@ -79,17 +79,11 @@ class StudentPortalController extends Controller
         $student = $this->studentFromRequest($request);
         $schedules = $this->teachingAssignmentService->scheduleForStudent($student);
 
-        // Group by day 1 to 5 (Senin - Jumat)
-        $days = [
-            1 => 'Senin',
-            2 => 'Selasa',
-            3 => 'Rabu',
-            4 => 'Kamis',
-            5 => 'Jumat',
-        ];
+        $dayNames = config('schedule.day_names', []);
+        $operationalDays = config('schedule.operational_days', array_keys($dayNames));
 
         $allScheduleRows = [];
-        foreach ($days as $dayNum => $dayName) {
+        foreach ($operationalDays as $dayNum) {
             $daySchedules = $schedules->filter(fn($s) => (int)$s->day_of_week === $dayNum)->values();
             if ($daySchedules->isNotEmpty()) {
                 $items = $daySchedules->map(fn($assignment, $index) => [
@@ -101,7 +95,7 @@ class StudentPortalController extends Controller
                 ])->all();
 
                 $allScheduleRows[] = [
-                    'day' => $dayName,
+                    'day' => $dayNames[$dayNum] ?? 'Hari ' . ($dayNum + 1),
                     'items' => $items,
                 ];
             }

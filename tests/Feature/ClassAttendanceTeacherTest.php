@@ -32,14 +32,13 @@ class ClassAttendanceTeacherTest extends TestCase
         );
     }
 
-    public function test_first_period_teacher_can_record_daily_class_attendance(): void
+    public function test_guru_mapel_class_attendance_route_is_not_available_for_subject_teacher(): void
     {
-        // 1. Setup Class and Students
         $class = SchoolClass::query()->create([
             'name' => '10A',
             'level' => 10,
             'academic_year' => '2025/2026',
-            'homeroom_teacher_id' => null, // No homeroom teacher assigned yet
+            'homeroom_teacher_id' => null,
         ]);
 
         $student = Student::query()->create([
@@ -48,7 +47,6 @@ class ClassAttendanceTeacherTest extends TestCase
             'nik' => '123456',
         ]);
 
-        // 2. Setup Teachers
         $userA = User::factory()->guruMapel()->create();
         $teacherA = Teacher::query()->create([
             'user_id' => $userA->id,
@@ -57,21 +55,11 @@ class ClassAttendanceTeacherTest extends TestCase
             'is_subject_teacher' => true,
         ]);
 
-        $userB = User::factory()->guruMapel()->create();
-        $teacherB = Teacher::query()->create([
-            'user_id' => $userB->id,
-            'nip' => 'T-B',
-            'name' => 'Teacher B',
-            'is_subject_teacher' => true,
-        ]);
-
         $subject = Subject::query()->create([
             'code' => 'M01',
             'name' => 'Matematika',
         ]);
 
-        // 3. Setup Teaching Assignments
-        // Teacher A teaches 1st period (earliest: 07:00) on Monday (day_of_week = 1)
         TeachingAssignment::query()->create([
             'teacher_id' => $teacherA->id,
             'subject_id' => $subject->id,
@@ -82,25 +70,11 @@ class ClassAttendanceTeacherTest extends TestCase
             'end_time' => '08:30:00',
         ]);
 
-        // Teacher B teaches 2nd period (08:30) on Monday
-        TeachingAssignment::query()->create([
-            'teacher_id' => $teacherB->id,
-            'subject_id' => $subject->id,
-            'school_class_id' => $class->id,
-            'academic_year' => '2025/2026',
-            'day_of_week' => 1,
-            'start_time' => '08:30:00',
-            'end_time' => '10:00:00',
-        ]);
-
-        $testDate = '2026-06-01'; // Monday
-
-        // 4. Test Teacher A (1st period) - SHOULD BE ALLOWED
         $this->actingAs($userA);
 
-        $response = $this->postJson('/guru-mapel/absensi-kelas', [
+        $this->postJson('/guru-mapel/absensi-kelas', [
             'school_class_id' => $class->id,
-            'attendance_date' => $testDate,
+            'attendance_date' => '2026-06-01',
             'attendances' => [
                 [
                     'student_id' => $student->id,
@@ -108,34 +82,7 @@ class ClassAttendanceTeacherTest extends TestCase
                     'notes' => 'Tepat waktu',
                 ]
             ],
-        ]);
-
-        $response->assertStatus(200)
-            ->assertJsonPath('message', 'Absensi kelas berhasil disimpan.');
-
-        $this->assertDatabaseHas('class_attendances', [
-            'school_class_id' => $class->id,
-            'student_id' => $student->id,
-            'attendance_date' => $testDate,
-            'recorded_by_teacher_id' => $teacherA->id,
-            'status' => 'hadir',
-        ]);
-
-        // 5. Test Teacher B (2nd period) - SHOULD BE FORBIDDEN (403)
-        $this->actingAs($userB);
-
-        $response = $this->postJson('/guru-mapel/absensi-kelas', [
-            'school_class_id' => $class->id,
-            'attendance_date' => $testDate,
-            'attendances' => [
-                [
-                    'student_id' => $student->id,
-                    'status' => 'hadir',
-                ]
-            ],
-        ]);
-
-        $response->assertStatus(403);
+        ])->assertNotFound();
     }
 
     public function test_homeroom_teacher_can_record_daily_class_attendance_regardless_of_period(): void

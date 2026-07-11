@@ -397,7 +397,7 @@
 
                 <section class="portal-overview-band" data-dashboard-section data-section-label="Ringkasan Guru Mapel">
                     @foreach ($summary as $item)
-                    <article class="portal-panel portal-summary-card {{ $loop->first ? 'has-anchor' : '' }}" @if ($loop->first) id="data-siswa" @endif data-search-item>
+                    <article class="portal-panel portal-summary-card {{ $loop->first ? 'has-anchor' : '' }}" @if ($loop->first) id="ringkasan-guru" @endif data-search-item>
                         <strong>{{ $item['value'] }}</strong>
                         <span>{{ $item['label'] }}</span>
                         <small>Aktif hari ini</small>
