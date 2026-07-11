@@ -522,6 +522,7 @@
                     </div>
                 </section>
 
+{{--
                 <section class="portal-metric-grid" id="rekap-absensi" data-dashboard-section data-section-label="Rekap Absensi">
                     @forelse ($attendanceCards as $card)
                     <article class="portal-panel portal-metric-card" data-search-item>
@@ -550,6 +551,7 @@
                     </article>
                     @endforelse
                 </section>
+                --}}
 
                 @elseif ($portalKey === 'walikelas')
                 <section class="portal-overview-band" data-dashboard-section data-section-label="Ringkasan Wali Kelas">
