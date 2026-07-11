@@ -36,13 +36,20 @@
         const setFormFeedback = function (form, message, isError) {
             const feedback = form.querySelector('[data-attendance-feedback]');
 
-            if (!feedback) {
-                return;
+            if (feedback) {
+                feedback.textContent = message;
+                feedback.classList.toggle('is-error', Boolean(isError));
+                feedback.classList.remove('d-none');
             }
 
-            feedback.textContent = message;
-            feedback.classList.toggle('is-error', Boolean(isError));
-            feedback.classList.remove('d-none');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: isError ? 'error' : 'success',
+                    title: isError ? 'Terjadi Kesalahan!' : 'Berhasil!',
+                    text: message,
+                    confirmButtonColor: '#2298cf'
+                });
+            }
         };
 
         const clearFormFeedback = function (form) {

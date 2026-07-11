@@ -23,7 +23,7 @@
             </label>
             <label>
                 <span>Tanggal</span>
-                <input class="form-control" type="date" value="{{ now()->toDateString() }}" data-attendance-date required>
+                <input class="form-control" type="date" value="{{ now()->toDateString() }}" data-attendance-date readonly style="background-color: #f1f5f9; color: #475569; cursor: not-allowed;" required>
             </label>
         </div>
 

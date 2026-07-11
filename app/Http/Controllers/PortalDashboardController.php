@@ -2998,6 +2998,9 @@ class PortalDashboardController extends Controller
                 'students_count' => (int) ($assignment->schoolClass?->students_count ?? $assignment->schoolClass?->students()->count() ?? 0),
                 'status' => $this->scheduleStatusForDate($assignment, $date),
                 'meeting_label' => $this->getMeetingLabelForSchedule($assignment->id, $date),
+                'is_filled' => \App\Models\SubjectAttendance::where('teaching_assignment_id', $assignment->id)
+                    ->where('attendance_date', $date)
+                    ->exists(),
             ])
             ->values()
             ->all();

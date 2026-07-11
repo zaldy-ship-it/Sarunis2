@@ -142,13 +142,20 @@
         const setFormFeedback = function (form, message, isError) {
             const feedback = form.querySelector('[data-attendance-feedback]');
 
-            if (!feedback) {
-                return;
+            if (feedback) {
+                feedback.textContent = message;
+                feedback.classList.toggle('is-error', Boolean(isError));
+                feedback.classList.remove('d-none');
             }
 
-            feedback.textContent = message;
-            feedback.classList.toggle('is-error', Boolean(isError));
-            feedback.classList.remove('d-none');
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: isError ? 'error' : 'success',
+                    title: isError ? 'Terjadi Kesalahan!' : 'Berhasil!',
+                    text: message,
+                    confirmButtonColor: '#2298cf'
+                });
+            }
         };
 
         const clearFormFeedback = function (form) {
@@ -410,6 +417,35 @@
                 }
 
                 await fetchAttendanceRecords(form, assignmentId, date);
+
+                const currentSchedule = scheduleRows.find(function(row) {
+                    return String(row.id) === String(assignmentId);
+                });
+
+                if (currentSchedule && currentSchedule.is_filled) {
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+                    const todayDateString = year + '-' + month + '-' + day;
+                    
+                    const isSameDay = date === todayDateString;
+                    
+                    const currentTimeString = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                    const isDuringLesson = currentTimeString >= currentSchedule.start_time && currentTimeString <= currentSchedule.end_time;
+                    
+                    if (!isSameDay || !isDuringLesson) {
+                        form.querySelectorAll('[data-student-id] select, [data-student-id] input, [data-mark-status]').forEach(function (field) {
+                            field.disabled = true;
+                        });
+                        const submitButton = form.querySelector('[type="submit"]');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
+                        
+                        setFormFeedback(form, 'Absensi sudah diisi dan hanya dapat diperbarui selama jam pelajaran berlangsung (' + currentSchedule.start_time + ' - ' + currentSchedule.end_time + ').', true);
+                    }
+                }
             };
 
             renderScheduleOptions(assignmentSelect, scheduleRows, assignmentSelect?.value || '');

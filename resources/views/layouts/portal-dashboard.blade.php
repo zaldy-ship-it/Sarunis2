@@ -13,6 +13,7 @@
             integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
             crossorigin="anonymous"
         >
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <style>
             {!! file_get_contents(resource_path('css/app.css')) !!}
             .portal-tooltip-sm {
@@ -156,6 +157,67 @@
                 observer.observe(document.body, { childList: true, subtree: true });
             });
         </script>
+
+        @if (session('success'))
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: {!! json_encode(session('success')) !!},
+                        confirmButtonColor: '#2298cf'
+                    });
+                });
+            </script>
+        @endif
+
+        @if (session('status'))
+            @php
+                $statusMsg = session('status');
+                $friendlyMsg = match($statusMsg) {
+                    'profil-diperbarui' => 'Profil Anda berhasil diperbarui.',
+                    'password-diperbarui' => 'Kata sandi Anda berhasil diperbarui.',
+                    default => $statusMsg
+                };
+            @endphp
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: {!! json_encode($friendlyMsg) !!},
+                        confirmButtonColor: '#2298cf'
+                    });
+                });
+            </script>
+        @endif
+
+        @if (session('error'))
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Terjadi Kesalahan!',
+                        text: {!! json_encode(session('error')) !!},
+                        confirmButtonColor: '#2298cf'
+                    });
+                });
+            </script>
+        @endif
+
+        @if ($errors->any())
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Kesalahan Validasi!',
+                        html: {!! json_encode(implode("<br>", $errors->all())) !!},
+                        confirmButtonColor: '#2298cf'
+                    });
+                });
+            </script>
+        @endif
+
         @stack('scripts')
     </body>
 </html>

@@ -47,6 +47,11 @@
                     <div class="portal-teacher-schedule-card__meta">
                         <span>{{ $row['room'] }}</span>
                         <span>{{ $activeAcademicYear }} | {{ ucfirst($activeSemester) }}</span>
+                        @if ($row['is_filled'])
+                            <span class="portal-badge is-success">Sudah Diisi</span>
+                        @else
+                            <span class="portal-badge is-warning">Belum Diisi</span>
+                        @endif
                     </div>
                 </div>
                 <div class="portal-teacher-schedule-card__actions">

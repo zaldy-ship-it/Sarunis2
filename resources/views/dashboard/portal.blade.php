@@ -353,6 +353,11 @@
                                 <div class="portal-schedule-card-header-left">
                                     <span class="portal-schedule-card-time">{{ $row['time'] }}</span>
                                     <span class="portal-badge is-primary">Jam Ke-{{ $row['lesson_period'] }}</span>
+                                    @if ($row['is_filled'])
+                                        <span class="portal-badge is-success">Sudah Diisi</span>
+                                    @else
+                                        <span class="portal-badge is-warning">Belum Diisi</span>
+                                    @endif
                                 </div>
                                 <span class="portal-badge is-{{ $row['status']['tone'] }}">{{ $row['status']['label'] }}</span>
                             </div>

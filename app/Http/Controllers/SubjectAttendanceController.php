@@ -56,6 +56,33 @@ class SubjectAttendanceController extends Controller
             'attendances.*.notes' => ['nullable', 'string'],
         ]);
 
+        if (!$request->user()->hasRole(UserRole::ADMIN)) {
+            $assignment = \App\Models\TeachingAssignment::findOrFail($payload['teaching_assignment_id']);
+            $date = $payload['attendance_date'];
+            
+            $alreadyFilled = \App\Models\SubjectAttendance::where('teaching_assignment_id', $assignment->id)
+                ->where('attendance_date', $date)
+                ->exists();
+
+            if ($alreadyFilled) {
+                $now = \Carbon\CarbonImmutable::now();
+                $targetDate = \Carbon\CarbonImmutable::parse($date);
+                $currentTime = $now->format('H:i:s');
+                
+                $start = $assignment->start_time;
+                $end = $assignment->end_time;
+
+                $isSameDay = $targetDate->isSameDay($now);
+                $isDuringLesson = $currentTime >= $start && $currentTime <= $end;
+
+                if (!$isSameDay || !$isDuringLesson) {
+                    return response()->json([
+                        'message' => 'Absensi yang sudah diisi hanya dapat diupdate selama jam pelajaran berlangsung.',
+                    ], 422);
+                }
+            }
+        }
+
         if ($request->user()->hasRole(UserRole::ADMIN)) {
             return response()->json([
                 'message' => 'Absensi mapel berhasil disimpan.',
