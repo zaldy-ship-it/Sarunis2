@@ -9,8 +9,10 @@ import { NAV_GROUPS, ROLE_LABELS } from '../utils/constants';
 const AV_COLORS = ["bg-blue-600","bg-violet-600","bg-emerald-600","bg-amber-600","bg-rose-600","bg-cyan-600","bg-orange-600"];
 function Av({ name, sz = "md", className }: { name: string; sz?: "xs"|"sm"|"md"|"lg"|"xl"; className?: string }) {
   const ss = { xs: "w-6 h-6 text-[9px]", sm: "w-8 h-8 text-xs", md: "w-9 h-9 text-sm", lg: "w-12 h-12 text-base", xl: "w-20 h-20 text-2xl" };
-  const color = AV_COLORS[name.charCodeAt(0) % AV_COLORS.length];
-  const init = name.split(" ").slice(0,2).map(n => n[0]).join("").toUpperCase();
+  const safeName = name || "User";
+  const charCode = safeName.charCodeAt(0) || 0;
+  const color = AV_COLORS[charCode % AV_COLORS.length];
+  const init = safeName.split(" ").slice(0,2).map(n => n[0]).join("").toUpperCase();
   return <div className={cn("rounded-full text-white font-semibold flex items-center justify-center flex-shrink-0", ss[sz], color, className)}>{init}</div>;
 }
 
@@ -78,11 +80,11 @@ export const MainLayout = () => {
             {/* User */}
             <div className="border-t border-white/5 flex-shrink-0">
                 <div className={cn("p-3 flex items-center gap-2.5", coll && "justify-center")}>
-                    <Av name={user.name} sz="sm" className="flex-shrink-0" />
+                    <Av name={user.name || 'User'} sz="sm" className="flex-shrink-0" />
                     {!coll && (
                         <>
                             <div className="min-w-0 flex-1">
-                                <p className="text-xs font-semibold text-slate-200 truncate leading-tight">{user.name.split(",")[0]}</p>
+                                <p className="text-xs font-semibold text-slate-200 truncate leading-tight">{(user.name || 'User').split(",")[0]}</p>
                                 <p className="text-[11px] text-slate-500 truncate">{ROLE_LABELS[currentRole] || "Pengguna"}</p>
                             </div>
                             <button onClick={logout} className="text-slate-500 hover:text-red-400 transition-colors flex-shrink-0 p-1">
@@ -134,9 +136,9 @@ export const MainLayout = () => {
 
                     <div className="relative">
                         <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors">
-                            <Av name={user.name} sz="sm" />
+                            <Av name={user.name || 'User'} sz="sm" />
                             <div className="hidden sm:block text-left">
-                                <p className="text-xs font-semibold text-slate-800 leading-tight">{user.name.split(",")[0]}</p>
+                                <p className="text-xs font-semibold text-slate-800 leading-tight">{(user.name || 'User').split(",")[0]}</p>
                                 <p className="text-[11px] text-slate-400 leading-tight">{ROLE_LABELS[currentRole] || "Pengguna"}</p>
                             </div>
                             <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block" />

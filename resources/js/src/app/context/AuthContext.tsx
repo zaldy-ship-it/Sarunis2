@@ -32,12 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (response.data?.data) {
                 // Map the backend role to frontend role (assuming the backend gives us an array of roles or a primary role)
                 const backendUser = response.data.data;
+                // The backend buildPayload returns { user: {...}, logged_in_user: {...}, roles: [...] }
                 const mappedUser: User = {
-                    id: backendUser.id,
-                    name: backendUser.name,
-                    email: backendUser.email,
+                    id: backendUser.logged_in_user?.id || backendUser.user?.id,
+                    name: backendUser.logged_in_user?.name || backendUser.user?.name || "User",
+                    email: backendUser.logged_in_user?.email || backendUser.user?.email || "",
                     roles: backendUser.roles || ["administrator"], // fallback mapping logic
-                    avatar: backendUser.avatar
+                    avatar: backendUser.user?.avatar
                 };
                 setUser(mappedUser);
             }
