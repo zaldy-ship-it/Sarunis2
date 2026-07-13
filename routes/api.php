@@ -50,3 +50,124 @@ Route::prefix('attendance/offline')->group(function () {
     Route::delete('/clear-old', [OfflineAttendanceController::class, 'clearOldRecords'])
         ->name('offline.clear.old');
 });
+use App\Http\Controllers\AcademicCalendarPortalController;
+use App\Http\Controllers\Admin\AcademicCalendarController;
+use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\AppSettingController;
+use App\Http\Controllers\Admin\ClassPlottingController;
+use App\Http\Controllers\Admin\ImportExportController;
+use App\Http\Controllers\Admin\SchoolClassController;
+use App\Http\Controllers\Admin\SemesterLockController;
+use App\Http\Controllers\Admin\StudentController;
+use App\Http\Controllers\Admin\StudentNoteController;
+use App\Http\Controllers\Admin\SubjectController;
+use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Admin\TeachingAssignmentController;
+use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AuthRecoveryController;
+use App\Http\Controllers\ClassAttendanceController;
+use App\Http\Controllers\HomeroomPortalController;
+use App\Http\Controllers\PortalAuthPageController;
+use App\Http\Controllers\PortalDashboardController;
+use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\StudentPortalController;
+use App\Http\Controllers\StudentViolationController;
+use App\Http\Controllers\SubjectAttendanceController;
+use App\Http\Controllers\TeacherPortalController;
+
+Route::prefix('v1')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/login/{portal}', [AuthController::class, 'portalLogin']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    Route::prefix('admin')->middleware('role.all:super_admin,admin_sekolah')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'admin']);
+        Route::get('/absensi/rekap', [PortalDashboardController::class, 'adminAttendanceRecap']);
+        Route::get('/absensi/laporan', [PortalDashboardController::class, 'adminAttendanceReport']);
+        Route::get('/data-siswa', [PortalDashboardController::class, 'adminStudents']);
+        Route::get('/data-guru', [PortalDashboardController::class, 'adminTeachers']);
+        Route::get('/data-kelas', [PortalDashboardController::class, 'adminClasses']);
+
+        Route::post('/import/{type}', [ImportExportController::class, 'import']);
+        Route::resource('pelanggaran', StudentViolationController::class)->except(['create', 'edit', 'show']);
+
+        Route::apiResource('siswa', StudentController::class)->parameters(['siswa' => 'student']);
+        Route::apiResource('guru', TeacherController::class)->parameters(['guru' => 'teacher']);
+        Route::apiResource('kelas', SchoolClassController::class)->parameters(['kelas' => 'schoolClass']);
+        Route::apiResource('mapel', SubjectController::class)->parameters(['mapel' => 'subject']);
+        Route::apiResource('jadwal-ajar', TeachingAssignmentController::class)->parameters(['jadwal-ajar' => 'teachingAssignment']);
+        Route::apiResource('kalender-akademik-data', AcademicCalendarController::class)->parameters(['kalender-akademik-data' => 'kalenderAkademik'])->except(['create', 'edit']);
+        Route::get('/semester-lock', [SemesterLockController::class, 'status']);
+        Route::post('/semester-lock', [SemesterLockController::class, 'lock']);
+        Route::delete('/semester-lock', [SemesterLockController::class, 'unlock']);
+        Route::post('pengguna/migrasi-profil', [UserManagementController::class, 'migrateProfiles']);
+        Route::apiResource('pengguna', UserManagementController::class)->parameters(['pengguna' => 'pengguna']);
+        Route::apiResource('setting', AppSettingController::class)->parameters(['setting' => 'setting']);
+        Route::apiResource('catatan', StudentNoteController::class)->parameters(['catatan' => 'catatanSiswa']);
+        Route::put('kelas/{schoolClass}/ploting', [ClassPlottingController::class, 'update']);
+        Route::get('/pengumuman', [AnnouncementController::class, 'page']);
+        Route::apiResource('announcements', AnnouncementController::class)->parameters(['announcements' => 'announcement'])->except(['create', 'edit']);
+
+        Route::prefix('schedule')->group(function () {
+            Route::post('/generate', [ScheduleController::class, 'generate']);
+            Route::get('/class/{classId}/{academicYear}', [ScheduleController::class, 'showClassSchedule'])->where('academicYear', '.*');
+            Route::get('/teacher/{teacherId}/{academicYear}', [ScheduleController::class, 'showTeacherSchedule'])->where('academicYear', '.*');
+            Route::get('/analyze/{academicYear}', [ScheduleController::class, 'analyze'])->where('academicYear', '.*');
+            Route::get('/conflicts/teacher/{academicYear}', [ScheduleController::class, 'teacherConflicts'])->where('academicYear', '.*');
+            Route::get('/conflicts/room/{academicYear}', [ScheduleController::class, 'roomConflicts'])->where('academicYear', '.*');
+            Route::get('/workload/{academicYear}', [ScheduleController::class, 'teacherWorkload'])->where('academicYear', '.*');
+            Route::get('/distribution/{classId}/{academicYear}', [ScheduleController::class, 'dailyDistribution'])->where('academicYear', '.*');
+        });
+    });
+
+    Route::prefix('guru-mapel')->middleware('role:guru_mapel')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'teacher']);
+        Route::get('/jadwal-ajar', [TeacherPortalController::class, 'schedule']);
+        Route::get('/siswa', [TeacherPortalController::class, 'students']);
+        Route::get('/rekap-absensi-mapel', [SubjectAttendanceController::class, 'index']);
+        Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
+        Route::get('/status-absensi', [AcademicCalendarPortalController::class, 'attendanceStatus']);
+        Route::post('/absensi-mapel', [SubjectAttendanceController::class, 'store']);
+    });
+
+    Route::prefix('walikelas')->middleware('homeroom-class')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'homeroom']);
+        Route::get('/kelas', [HomeroomPortalController::class, 'classes']);
+        Route::get('/siswa', [HomeroomPortalController::class, 'students']);
+        Route::get('/catatan', [StudentNoteController::class, 'homeroomIndex']);
+        Route::post('/catatan', [StudentNoteController::class, 'homeroomStore']);
+        Route::get('/catatan/{catatanSiswa}', [StudentNoteController::class, 'homeroomShow']);
+        Route::put('/catatan/{catatanSiswa}', [StudentNoteController::class, 'homeroomUpdate']);
+        Route::patch('/catatan/{catatanSiswa}', [StudentNoteController::class, 'homeroomUpdate']);
+        Route::delete('/catatan/{catatanSiswa}', [StudentNoteController::class, 'homeroomDestroy']);
+        Route::get('/rekap-absensi-kelas', [ClassAttendanceController::class, 'index']);
+        Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
+        Route::get('/status-absensi', [AcademicCalendarPortalController::class, 'attendanceStatus']);
+        Route::post('/absensi-kelas', [ClassAttendanceController::class, 'store']);
+    });
+
+    Route::prefix('orang-tua')->middleware('role:orang_tua')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'parent']);
+        Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
+    });
+
+    Route::prefix('siswa')->middleware('role:siswa')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'student']);
+        Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
+    });
+
+    Route::prefix('wakasek-kesiswaan')->middleware('role:wakasek_kesiswaan')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'wakasekKesiswaan']);
+        Route::resource('pelanggaran', StudentViolationController::class)->except(['create', 'edit', 'show']);
+    });
+
+    Route::prefix('guru-piket')->middleware('role:guru_piket')->group(function () {
+        Route::get('/dashboard', [PortalDashboardController::class, 'guruPiket']);
+        Route::resource('pelanggaran', StudentViolationController::class)->except(['create', 'edit', 'show']);
+    });
+});
+});
