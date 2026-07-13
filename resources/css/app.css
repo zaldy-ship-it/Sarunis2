@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@source "../js";
+@source "../views";
 /* KEEP_IN_SYNC(fullscreen/resources/figmake/shadcn/globals.css) */
 
 :root {
