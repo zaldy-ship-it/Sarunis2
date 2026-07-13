@@ -84,7 +84,18 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-    Route::prefix('admin')->middleware('role.all:super_admin,admin_sekolah')->group(function () {
+    });
+
+    Route::get('/debug-stateful', function () {
+        return [
+            'is_frontend' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::fromFrontend(request()),
+            'host' => request()->getHost(),
+            'port' => request()->getPort(),
+            'stateful_domains' => config('sanctum.stateful'),
+            'referer' => request()->header('referer'),
+            'origin' => request()->header('origin'),
+        ];
+    });    Route::prefix('admin')->middleware('role.all:super_admin,admin_sekolah')->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'admin']);
         Route::get('/absensi/rekap', [PortalDashboardController::class, 'adminAttendanceRecap']);
         Route::get('/absensi/laporan', [PortalDashboardController::class, 'adminAttendanceReport']);
@@ -169,5 +180,4 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'guruPiket']);
         Route::resource('pelanggaran', StudentViolationController::class)->except(['create', 'edit', 'show']);
     });
-});
 });
