@@ -455,7 +455,7 @@ class CsvImportExportService
 
     protected function teacherHeaders(): array
     {
-        return ['id', 'nip', 'nik', 'name', 'gender', 'birth_date', 'phone', 'position', 'employment_status'];
+        return ['id', 'nip', 'nik', 'name', 'birth_place', 'birth_date', 'gender', 'religion', 'employment_status', 'position', 'join_date', 'last_education', 'major', 'university', 'phone', 'address'];
     }
 
     protected function classHeaders(): array
@@ -585,11 +585,18 @@ class CsvImportExportService
                 $teacher->nip,
                 $teacher->nik,
                 $teacher->name,
-                $teacher->gender,
+                $teacher->birth_place,
                 $teacher->birth_date?->toDateString(),
-                $teacher->phone,
-                $teacher->position,
+                $teacher->gender,
+                $teacher->religion,
                 $teacher->employment_status,
+                $teacher->position,
+                $teacher->join_date?->toDateString(),
+                $teacher->last_education,
+                $teacher->major,
+                $teacher->university,
+                $teacher->phone,
+                $teacher->address,
             ])
             ->all();
     }
