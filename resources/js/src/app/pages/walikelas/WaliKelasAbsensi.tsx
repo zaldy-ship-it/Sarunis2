@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Save, Calendar, CheckSquare, HelpCircle, Check, AlertCircle, ArrowLeft, Search } from 'lucide-react';
+import { RefreshCw, Save, CheckSquare, AlertCircle, ArrowLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
@@ -23,19 +23,29 @@ interface Meeting {
 
 interface AttendanceRecord {
     student_id: number;
-    status: 'H' | 'S' | 'I' | 'A' | 'T';
+    status: AttendanceStatus;
     notes: string;
 }
 
-type StatusKey = 'H' | 'S' | 'I' | 'A' | 'T';
+type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpha';
 
-const statusOptions: Array<{ value: StatusKey; label: string; short: string; className: string }> = [
-    { value: 'H', label: 'Hadir', short: 'H', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-    { value: 'S', label: 'Sakit', short: 'S', className: 'border-amber-200 bg-amber-50 text-amber-700' },
-    { value: 'I', label: 'Izin', short: 'I', className: 'border-blue-200 bg-blue-50 text-blue-700' },
-    { value: 'A', label: 'Alpha', short: 'A', className: 'border-rose-200 bg-rose-50 text-rose-700' },
-    { value: 'T', label: 'Terlambat', short: 'T', className: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
+const statusOptions: Array<{ value: AttendanceStatus; label: string; short: string; className: string }> = [
+    { value: 'hadir', label: 'Hadir', short: 'H', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    { value: 'sakit', label: 'Sakit', short: 'S', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+    { value: 'izin', label: 'Izin', short: 'I', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+    { value: 'alpha', label: 'Alpha', short: 'A', className: 'border-rose-200 bg-rose-50 text-rose-700' },
 ];
+
+const normalizeStatus = (value: string): AttendanceStatus => {
+    const legacyMap: Record<string, AttendanceStatus> = {
+        H: 'hadir',
+        S: 'sakit',
+        I: 'izin',
+        A: 'alpha',
+    };
+
+    return legacyMap[value] || (statusOptions.some((status) => status.value === value) ? value as AttendanceStatus : 'hadir');
+};
 
 const getMeetingStatus = (meetingDate: string) => {
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -44,7 +54,15 @@ const getMeetingStatus = (meetingDate: string) => {
     return 'sedang berlangsung';
 };
 
-export const WaliKelasAbsensi = () => {
+interface WaliKelasAbsensiProps {
+    pageTitle?: string;
+    pageDescription?: string;
+}
+
+export const WaliKelasAbsensi = ({
+    pageTitle = 'Absensi Harian (Wali Kelas)',
+    pageDescription = 'Isi dan edit kehadiran harian siswa per pertemuan KBM.',
+}: WaliKelasAbsensiProps = {}) => {
     const [classes, setClasses] = useState<SchoolClass[]>([]);
     const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
     const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -58,6 +76,7 @@ export const WaliKelasAbsensi = () => {
     const [loadingMeetings, setLoadingMeetings] = useState(false);
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [loadError, setLoadError] = useState('');
 
     const meetingStatus = useMemo(() => {
         if (!selectedMeeting) return 'belum berlangsung';
@@ -88,6 +107,7 @@ export const WaliKelasAbsensi = () => {
     }, []);
 
     const fetchClasses = async () => {
+        setLoadError('');
         try {
             const response = await api.get('/walikelas/kelas');
             const data = response.data.data || [];
@@ -96,8 +116,10 @@ export const WaliKelasAbsensi = () => {
                 setSelectedClassId(data[0].id);
                 fetchMeetings(data[0].id);
             }
-        } catch (error) {
-            toast.error('Gagal mengambil data kelas perwalian.');
+        } catch (error: any) {
+            const message = error.response?.data?.message || 'Gagal mengambil data kelas perwalian.';
+            setLoadError(message);
+            toast.error(message);
         } finally {
             setLoadingClasses(false);
         }
@@ -161,7 +183,7 @@ export const WaliKelasAbsensi = () => {
             existingRecords.forEach((record: any) => {
                 existingMap[record.student_id] = {
                     student_id: record.student_id,
-                    status: record.status,
+                    status: normalizeStatus(record.status),
                     notes: record.notes || ''
                 };
             });
@@ -170,7 +192,7 @@ export const WaliKelasAbsensi = () => {
             studentsList.forEach((s: Student) => {
                 initialAttendances[s.id] = existingMap[s.id] || {
                     student_id: s.id,
-                    status: 'H',
+                    status: 'hadir',
                     notes: ''
                 };
             });
@@ -198,7 +220,7 @@ export const WaliKelasAbsensi = () => {
         }
     };
 
-    const handleStatusChange = (studentId: number, status: StatusKey) => {
+    const handleStatusChange = (studentId: number, status: AttendanceStatus) => {
         setAttendances(prev => ({
             ...prev,
             [studentId]: {
@@ -218,7 +240,7 @@ export const WaliKelasAbsensi = () => {
         }));
     };
 
-    const handleMarkAll = (status: StatusKey) => {
+    const handleMarkAll = (status: AttendanceStatus) => {
         setAttendances(prev => {
             const updated = { ...prev };
             students.forEach((student) => {
@@ -264,14 +286,30 @@ export const WaliKelasAbsensi = () => {
         );
     }
 
+    if (loadError) {
+        return (
+            <div className="min-h-full bg-slate-50 p-6">
+                <div className="mx-auto max-w-3xl rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-800 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div>
+                            <h1 className="font-semibold">Absensi kelas belum tersedia</h1>
+                            <p className="mt-1 text-sm">{loadError}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-full overflow-x-hidden bg-slate-50 px-2 py-4 sm:p-6">
             <div className="mx-auto w-full max-w-5xl space-y-5 overflow-x-hidden">
                 {/* Header */}
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
-                        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Absensi Harian (Wali Kelas)</h1>
-                        <p className="mt-1 text-sm text-slate-500">Isi dan edit kehadiran harian siswa per pertemuan KBM.</p>
+                        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{pageTitle}</h1>
+                        <p className="mt-1 text-sm text-slate-500">{pageDescription}</p>
                     </div>
                     {classes.length > 1 && (
                         <div className="w-full sm:w-auto">
@@ -391,13 +429,13 @@ export const WaliKelasAbsensi = () => {
                         {!isReadOnly && !isNotStarted && students.length > 0 && (
                             <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-3 sm:px-4 border-b border-slate-100">
                                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-2">Pilih Cepat:</span>
-                                <button type="button" onClick={() => handleMarkAll('H')} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition">
+                                <button type="button" onClick={() => handleMarkAll('hadir')} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition">
                                     Masuk Semua
                                 </button>
-                                <button type="button" onClick={() => handleMarkAll('I')} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition">
+                                <button type="button" onClick={() => handleMarkAll('izin')} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 transition">
                                     Izin Semua
                                 </button>
-                                <button type="button" onClick={() => handleMarkAll('S')} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 transition">
+                                <button type="button" onClick={() => handleMarkAll('sakit')} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 transition">
                                     Sakit Semua
                                 </button>
                             </div>
@@ -413,7 +451,7 @@ export const WaliKelasAbsensi = () => {
                         ) : (
                             <>
                                 {/* Summary cards */}
-                                <div className="grid grid-cols-2 gap-2 border-b border-slate-100 p-3 sm:grid-cols-5 sm:p-4">
+                                <div className="grid grid-cols-2 gap-2 border-b border-slate-100 p-3 sm:grid-cols-4 sm:p-4">
                                     {selectedSummary.map((item) => (
                                         <div key={item.value} className={`rounded-lg border px-3 py-2 ${item.className}`}>
                                             <p className="text-xs font-semibold">{item.label}</p>
@@ -425,7 +463,7 @@ export const WaliKelasAbsensi = () => {
                                 {/* Student list */}
                                 <div className="divide-y divide-slate-100">
                                     {filteredStudents.map((student) => {
-                                        const record = attendances[student.id] || { student_id: student.id, status: 'H' as StatusKey, notes: '' };
+                                        const record = attendances[student.id] || { student_id: student.id, status: 'hadir' as AttendanceStatus, notes: '' };
 
                                         return (
                                             <div key={student.id} className="p-4">
@@ -434,7 +472,7 @@ export const WaliKelasAbsensi = () => {
                                                         <p className="font-semibold text-slate-900">{student.name}</p>
                                                         <p className="mt-0.5 break-words text-xs text-slate-400">NIK: {student.nik}</p>
                                                     </div>
-                                                    <div className="grid min-w-0 grid-cols-5 gap-2 sm:flex sm:flex-wrap">
+                                                    <div className="grid min-w-0 grid-cols-4 gap-2 sm:flex sm:flex-wrap">
                                                         {statusOptions.map((status) => {
                                                             const active = record.status === status.value;
 

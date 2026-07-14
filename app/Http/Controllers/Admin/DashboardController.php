@@ -9,6 +9,7 @@ use App\Models\Teacher;
 use App\Models\SchoolClass;
 use App\Models\ClassAttendance;
 use App\Models\AcademicCalendar;
+use App\Enums\AttendanceStatus;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -25,14 +26,14 @@ class DashboardController extends Controller
         // Kehadiran hari ini
         $today = Carbon::today()->toDateString();
         $todayTotal  = ClassAttendance::where('attendance_date', $today)->count();
-        $todayHadir  = ClassAttendance::where('attendance_date', $today)->where('status', 'hadir')->count();
+        $todayHadir  = ClassAttendance::where('attendance_date', $today)->where('status', AttendanceStatus::HADIR->value)->count();
         $kehadiranHariIni = $todayTotal > 0 ? round(($todayHadir / $todayTotal) * 100, 1) : 0;
 
         // Kehadiran bulan ini
         $startOfMonth = Carbon::now()->startOfMonth()->toDateString();
         $endOfMonth   = Carbon::now()->endOfMonth()->toDateString();
         $monthTotal   = ClassAttendance::whereBetween('attendance_date', [$startOfMonth, $endOfMonth])->count();
-        $monthHadir   = ClassAttendance::whereBetween('attendance_date', [$startOfMonth, $endOfMonth])->where('status', 'hadir')->count();
+        $monthHadir   = ClassAttendance::whereBetween('attendance_date', [$startOfMonth, $endOfMonth])->where('status', AttendanceStatus::HADIR->value)->count();
         $kehadiranBulanIni = $monthTotal > 0 ? round(($monthHadir / $monthTotal) * 100, 1) : 0;
 
         // ─── TREN KEHADIRAN (6 bulan terakhir) ─────────────────────────
@@ -44,7 +45,7 @@ class DashboardController extends Controller
             $end   = $m->copy()->endOfMonth()->toDateString();
 
             $total = ClassAttendance::whereBetween('attendance_date', [$start, $end])->count();
-            $hadir = ClassAttendance::whereBetween('attendance_date', [$start, $end])->where('status', 'hadir')->count();
+            $hadir = ClassAttendance::whereBetween('attendance_date', [$start, $end])->where('status', AttendanceStatus::HADIR->value)->count();
 
             $trenKehadiran[] = [
                 'month' => $bulanIndo[(int)$m->format('n')],
@@ -55,11 +56,10 @@ class DashboardController extends Controller
 
         // ─── REKAP STATUS KEHADIRAN HARI INI ──────────────────────────
         $rekapHariIni = [
-            'hadir'     => ClassAttendance::where('attendance_date', $today)->where('status', 'hadir')->count(),
-            'sakit'     => ClassAttendance::where('attendance_date', $today)->where('status', 'sakit')->count(),
-            'izin'      => ClassAttendance::where('attendance_date', $today)->where('status', 'izin')->count(),
-            'alpa'      => ClassAttendance::where('attendance_date', $today)->where('status', 'alpa')->count(),
-            'terlambat' => ClassAttendance::where('attendance_date', $today)->where('status', 'terlambat')->count(),
+            'hadir' => ClassAttendance::where('attendance_date', $today)->where('status', AttendanceStatus::HADIR->value)->count(),
+            'sakit' => ClassAttendance::where('attendance_date', $today)->where('status', AttendanceStatus::SAKIT->value)->count(),
+            'izin' => ClassAttendance::where('attendance_date', $today)->where('status', AttendanceStatus::IZIN->value)->count(),
+            'alpha' => ClassAttendance::where('attendance_date', $today)->where('status', AttendanceStatus::ALPHA->value)->count(),
         ];
 
         // ─── AKTIVITAS ABSENSI TERBARU ─────────────────────────────────
@@ -84,11 +84,11 @@ class DashboardController extends Controller
                 'students.name',
                 'students.school_class_id',
                 DB::raw('COUNT(class_attendances.id) as total_attendance'),
-                DB::raw("SUM(CASE WHEN class_attendances.status = 'hadir' THEN 1 ELSE 0 END) as total_hadir")
+                DB::raw("SUM(CASE WHEN class_attendances.status = '".AttendanceStatus::HADIR->value."' THEN 1 ELSE 0 END) as total_hadir")
             )
             ->groupBy('students.id', 'students.name', 'students.school_class_id')
             ->having('total_attendance', '>', 0)
-            ->orderByRaw("(SUM(CASE WHEN class_attendances.status = 'hadir' THEN 1 ELSE 0 END) / COUNT(class_attendances.id)) DESC")
+            ->orderByRaw("(SUM(CASE WHEN class_attendances.status = '".AttendanceStatus::HADIR->value."' THEN 1 ELSE 0 END) / COUNT(class_attendances.id)) DESC")
             ->take(5)
             ->get();
 

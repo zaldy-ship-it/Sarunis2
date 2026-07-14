@@ -60,8 +60,7 @@ function StBdg({ st }: { st: string }) {
     const map: Record<string, { v: "default" | "success" | "warning" | "danger" | "info"; l: string }> = {
         hadir:     { v: "success", l: "Hadir"     },
         sakit:     { v: "warning", l: "Sakit"     },
-        terlambat: { v: "info",    l: "Terlambat" },
-        alpa:      { v: "danger",  l: "Alpa"      },
+        alpha:     { v: "danger",  l: "Alpha"     },
         izin:      { v: "default", l: "Izin"      },
     };
     const item = map[st] || { v: "default", l: st };
@@ -77,7 +76,7 @@ interface DashboardData {
         siswa_no_kelas: number;
         kehadiran_hari_ini: number;
         kehadiran_bulan_ini: number;
-        rekap_hari_ini: { hadir: number; sakit: number; izin: number; alpa: number; terlambat: number };
+        rekap_hari_ini: { hadir: number; sakit: number; izin: number; alpha: number };
     };
     charts: { tren_kehadiran: { month: string; hadir: number; total: number }[] };
     recent: {
@@ -136,8 +135,7 @@ export const AdminDashboard = () => {
         { name: 'Hadir',     value: stats.rekap_hari_ini.hadir,     color: '#10B981' },
         { name: 'Sakit',     value: stats.rekap_hari_ini.sakit,     color: '#F59E0B' },
         { name: 'Izin',      value: stats.rekap_hari_ini.izin,      color: '#6366F1' },
-        { name: 'Terlambat', value: stats.rekap_hari_ini.terlambat, color: '#3B82F6' },
-        { name: 'Alpa',      value: stats.rekap_hari_ini.alpa,      color: '#EF4444' },
+        { name: 'Alpha',     value: stats.rekap_hari_ini.alpha,     color: '#EF4444' },
     ];
     const totalHariIni = Object.values(stats.rekap_hari_ini).reduce((a, b) => a + b, 0);
 

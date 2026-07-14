@@ -141,7 +141,7 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
             {
                 id: "teacher-absensi", label: "Absensi Kelas", icon: CheckSquare,
                 subItems: [
-                    { id: "teacher-absensi-input", label: "Input Absensi", path: "/guru-mapel/absensi/input" },
+                    { id: "teacher-absensi-input", label: "Input Absen Kelas", path: "/guru-mapel/absensi/input" },
                     { id: "teacher-absensi-riwayat", label: "Riwayat Absensi", path: "/guru-mapel/absensi/riwayat" },
                     { id: "teacher-absensi-rekap", label: "Rekap Kehadiran", path: "/guru-mapel/absensi/rekap" },
                 ]
