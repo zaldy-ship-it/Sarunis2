@@ -9,7 +9,7 @@ export interface User {
     email: string;
     roles: Role[];
     avatar?: string;
-    // other fields as necessary
+    activePortal?: string;
 }
 
 interface AuthContextType {
@@ -38,7 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     name: backendUser.logged_in_user?.name || backendUser.user?.name || "User",
                     email: backendUser.logged_in_user?.email || backendUser.user?.email || "",
                     roles: backendUser.roles || ["administrator"], // fallback mapping logic
-                    avatar: backendUser.user?.avatar
+                    avatar: backendUser.user?.avatar,
+                    activePortal: backendUser.active_portal,
                 };
                 setUser(mappedUser);
             }

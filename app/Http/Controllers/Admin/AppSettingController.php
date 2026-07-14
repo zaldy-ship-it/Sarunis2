@@ -78,8 +78,27 @@ class AppSettingController extends Controller
             'key' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9_.-]+$/', Rule::unique('app_settings', 'key')->ignore($setting?->id)],
             'label' => ['required', 'string', 'max:255'],
             'value' => ['nullable', 'string', 'max:5000'],
-            'type' => ['required', 'string', Rule::in(['text', 'number', 'boolean', 'textarea', 'email', 'url'])],
+            'type' => ['required', 'string', Rule::in(['text', 'number', 'boolean', 'textarea', 'email', 'url', 'select', 'date'])],
             'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+    }
+
+    /**
+     * Simplified update: only validate & update the value field.
+     * Used by frontend which only sends { value } without all metadata.
+     */
+    public function updateValue(Request $request, AppSetting $setting): JsonResponse
+    {
+        $request->validate([
+            'value' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $setting->update(['value' => $request->input('value')]);
+        $this->appSettingService->clearCache();
+
+        return response()->json([
+            'message' => 'Pengaturan berhasil diperbarui.',
+            'data'    => $setting->refresh(),
         ]);
     }
 

@@ -14,6 +14,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use App\Models\TeachingAssignment;
+use App\Services\TeachingAssignmentService;
+use App\Services\AppSettingService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CsvImportExportService
@@ -21,6 +24,8 @@ class CsvImportExportService
     public function __construct(
         protected StudentService $studentService,
         protected TeacherService $teacherService,
+        protected TeachingAssignmentService $teachingAssignmentService,
+        protected AppSettingService $appSettingService,
     ) {
     }
 
@@ -169,11 +174,125 @@ class CsvImportExportService
         });
     }
 
+    /**
+     * @return array{created:int,updated:int,failed:int,errors:array<int, array{row:int,messages:array<int,string>}>}
+     */
+    public function importSchedules(UploadedFile $file): array
+    {
+        $academicYear = $this->appSettingService->value('academic_year', '2025/2026') ?: '2025/2026';
+        $dayMap = [
+            'senin' => 0, 'selasa' => 1, 'rabu' => 2, 'kamis' => 3, 'jumat' => 4, 'sabtu' => 5, 'minggu' => 6,
+            'monday' => 0, 'tuesday' => 1, 'wednesday' => 2, 'thursday' => 3, 'friday' => 4, 'saturday' => 5, 'sunday' => 6
+        ];
+
+        return $this->importRows($file, function (array $row) use ($academicYear, $dayMap): string {
+            // Resolve Teacher
+            $teacher = Teacher::query()->where('nip', (string) ($row['nip_guru'] ?? ''))->first();
+            // Resolve Subject
+            $subject = Subject::query()
+                ->where('code', (string) ($row['nama_mapel'] ?? ''))
+                ->orWhere('name', (string) ($row['nama_mapel'] ?? ''))
+                ->first();
+            // Resolve Class
+            $schoolClass = SchoolClass::query()->where('name', (string) ($row['nama_kelas'] ?? ''))->first();
+
+            // Resolve Day
+            $dayInput = strtolower(trim((string) ($row['hari'] ?? '')));
+            $dayOfWeek = is_numeric($dayInput) ? (int)$dayInput : ($dayMap[$dayInput] ?? null);
+
+            $payload = [
+                'academic_year' => $academicYear,
+                'teacher_id' => $teacher?->id,
+                'subject_id' => $subject?->id,
+                'school_class_id' => $schoolClass?->id,
+                'day_of_week' => $dayOfWeek,
+                'start_time' => $row['jam_mulai'] ?? null,
+                'end_time' => $row['jam_selesai'] ?? null,
+                'room' => $row['ruangan'] ?? null,
+            ];
+
+            $validator = Validator::make($payload, [
+                'academic_year' => ['required', 'string'],
+                'teacher_id' => ['required', 'integer', 'exists:teachers,id'],
+                'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+                'school_class_id' => ['required', 'integer', 'exists:school_classes,id'],
+                'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
+                'start_time' => ['required', 'date_format:H:i'],
+                'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+                'room' => ['nullable', 'string', 'max:50'],
+            ], [
+                'teacher_id.required' => 'NIP Guru tidak valid atau tidak terdaftar.',
+                'subject_id.required' => 'Kode/Nama Mapel tidak valid atau tidak terdaftar.',
+                'school_class_id.required' => 'Nama Kelas tidak valid atau tidak terdaftar.',
+                'day_of_week.required' => 'Hari tidak valid.',
+            ]);
+
+            $validator->validate();
+
+            // Check overlap for Teacher
+            $teacherConflict = TeachingAssignment::where('teacher_id', $payload['teacher_id'])
+                ->where('academic_year', $academicYear)
+                ->where('day_of_week', $payload['day_of_week'])
+                ->where(function($q) use ($payload) {
+                    $q->whereBetween('start_time', [$payload['start_time'], $payload['end_time']])
+                      ->orWhereBetween('end_time', [$payload['start_time'], $payload['end_time']])
+                      ->orWhere(function($q2) use ($payload) {
+                          $q2->where('start_time', '<=', $payload['start_time'])
+                             ->where('end_time', '>=', $payload['end_time']);
+                      });
+                });
+
+            // Check overlap for Class
+            $classConflict = TeachingAssignment::where('school_class_id', $payload['school_class_id'])
+                ->where('academic_year', $academicYear)
+                ->where('day_of_week', $payload['day_of_week'])
+                ->where(function($q) use ($payload) {
+                    $q->whereBetween('start_time', [$payload['start_time'], $payload['end_time']])
+                      ->orWhereBetween('end_time', [$payload['start_time'], $payload['end_time']])
+                      ->orWhere(function($q2) use ($payload) {
+                          $q2->where('start_time', '<=', $payload['start_time'])
+                             ->where('end_time', '>=', $payload['end_time']);
+                      });
+                });
+
+            // Find if there is an exact schedule slot already
+            $existing = TeachingAssignment::where('school_class_id', $payload['school_class_id'])
+                ->where('academic_year', $academicYear)
+                ->where('day_of_week', $payload['day_of_week'])
+                ->where('start_time', $payload['start_time'])
+                ->where('end_time', $payload['end_time'])
+                ->first();
+
+            if ($existing) {
+                // If existing, we can update it. Conflict checks should exclude this exact record.
+                $teacherConflict = $teacherConflict->where('id', '!=', $existing->id);
+                $classConflict = $classConflict->where('id', '!=', $existing->id);
+            }
+
+            if ($teacherConflict->exists()) {
+                throw new \Exception("Konflik Guru: Guru NIP {$row['nip_guru']} sudah mengajar di kelas lain pada jam tersebut.");
+            }
+
+            if ($classConflict->exists()) {
+                throw new \Exception("Konflik Kelas: Kelas {$row['nama_kelas']} sudah memiliki jadwal pelajaran lain pada jam tersebut.");
+            }
+
+            if ($existing) {
+                $this->teachingAssignmentService->update($existing, $payload);
+                return 'updated';
+            }
+
+            $this->teachingAssignmentService->create($payload);
+            return 'created';
+        });
+    }
+
     public function template(string $type): StreamedResponse
     {
         [$filename, $headers] = match ($type) {
             'siswa' => ['template-import-siswa.csv', ['nik', 'nisn', 'name', 'gender', 'birth_date', 'phone', 'address', 'school_class_id', 'class_name']],
             'guru' => ['template-import-guru.csv', ['nip', 'nik', 'name', 'birth_place', 'birth_date', 'gender', 'religion', 'employment_status', 'position', 'join_date', 'last_education', 'major', 'university', 'phone', 'address']],
+            'jadwal' => ['template-import-jadwal.csv', ['nip_guru', 'nama_mapel', 'nama_kelas', 'hari', 'jam_mulai', 'jam_selesai', 'ruangan']],
             default => abort(404, 'Template import tidak ditemukan.'),
         };
 
@@ -311,12 +430,35 @@ class CsvImportExportService
      */
     protected function studentRows(array $filters = []): array
     {
+        $gender = $filters['gender'] ?? null;
+        $level = $filters['level'] ?? null;
+        $academicYear = $filters['academic_year'] ?? null;
+        $search = $filters['search'] ?? null;
+
         return Student::query()
             ->with('schoolClass')
             ->when(
                 $this->filterInt($filters, 'school_class_id'),
                 fn ($query, int $schoolClassId) => $query->where('school_class_id', $schoolClassId),
             )
+            ->when(
+                is_string($gender) && $gender !== '',
+                fn ($query) => $query->where('gender', $gender),
+            )
+            ->when(is_string($level) && $level !== '', function ($query) use ($level): void {
+                $query->whereHas('schoolClass', fn ($classQuery) => $classQuery->where('level', $level));
+            })
+            ->when(is_string($academicYear) && $academicYear !== '', function ($query) use ($academicYear): void {
+                $query->whereHas('schoolClass', fn ($classQuery) => $classQuery->where('academic_year', $academicYear));
+            })
+            ->when(is_string($search) && $search !== '', function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%")
+                        ->orWhere('nisn', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('name')
             ->get()
             ->map(fn (Student $student): array => [
@@ -336,8 +478,28 @@ class CsvImportExportService
     protected function teacherRows(array $filters = []): array
     {
         $category = $filters['category'] ?? null;
+        $gender = $filters['gender'] ?? null;
+        $employmentStatus = $filters['employment_status'] ?? null;
+        $search = $filters['search'] ?? null;
 
         $query = Teacher::query()
+            ->withCount(['subjects', 'teachingAssignments', 'homeroomClasses'])
+            ->when(
+                is_string($gender) && $gender !== '',
+                fn ($teacherQuery) => $teacherQuery->where('gender', $gender),
+            )
+            ->when(
+                is_string($employmentStatus) && $employmentStatus !== '',
+                fn ($teacherQuery) => $teacherQuery->where('employment_status', $employmentStatus),
+            )
+            ->when(is_string($search) && $search !== '', function ($teacherQuery) use ($search): void {
+                $teacherQuery->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('nip', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('name')
             ->get();
 
@@ -363,6 +525,7 @@ class CsvImportExportService
     protected function classRows(array $filters = []): array
     {
         $level = $filters['level'] ?? null;
+        $academicYear = $filters['academic_year'] ?? null;
 
         return SchoolClass::query()
             ->with('homeroomTeacher')
@@ -374,6 +537,10 @@ class CsvImportExportService
             ->when(
                 $level !== null && $level !== '',
                 fn ($query) => $query->where('level', $level),
+            )
+            ->when(
+                $academicYear !== null && $academicYear !== '',
+                fn ($query) => $query->where('academic_year', $academicYear),
             )
             ->orderBy('name')
             ->get()
@@ -392,6 +559,7 @@ class CsvImportExportService
     protected function subjectRows(array $filters = []): array
     {
         $usage = $filters['usage'] ?? null;
+        $search = $filters['search'] ?? null;
 
         return Subject::query()
             ->with(['teachers', 'schoolClass', 'schoolClasses'])
@@ -410,6 +578,13 @@ class CsvImportExportService
             })
             ->when($usage === 'belum-dipakai', function ($query): void {
                 $query->doesntHave('teachingAssignments');
+            })
+            ->when(is_string($search) && $search !== '', function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%");
+                });
             })
             ->orderBy('name')
             ->get()
@@ -435,12 +610,36 @@ class CsvImportExportService
     protected function attendanceRows(array $filters = []): array
     {
         $type = $filters['type'] ?? 'gabungan';
+        $status = $filters['status'] ?? null;
+        $search = $filters['search'] ?? null;
+        $teacherId = $this->filterInt($filters, 'teacher_id');
+        $studentId = $this->filterInt($filters, 'student_id');
 
         $classRows = ClassAttendance::query()
             ->with(['student', 'schoolClass', 'recordedByTeacher'])
             ->when(
                 $this->filterInt($filters, 'school_class_id'),
                 fn ($query, int $schoolClassId) => $query->where('school_class_id', $schoolClassId),
+            )
+            ->when(
+                $teacherId,
+                fn ($query, int $recordedByTeacherId) => $query->where('recorded_by_teacher_id', $recordedByTeacherId),
+            )
+            ->when(
+                $studentId,
+                fn ($query, int $attendanceStudentId) => $query->where('student_id', $attendanceStudentId),
+            )
+            ->when(is_string($search) && $search !== '', function ($query) use ($search): void {
+                $query->whereHas('student', function ($studentQuery) use ($search): void {
+                    $studentQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%")
+                        ->orWhere('nisn', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                is_string($status) && $status !== '',
+                fn ($query) => $query->where('status', $status),
             )
             ->when(
                 $this->filterDate($filters, 'attendance_date'),
@@ -478,8 +677,32 @@ class CsvImportExportService
                     ->when(
                         $this->filterInt($filters, 'subject_id'),
                         fn ($assignmentQuery, int $subjectId) => $assignmentQuery->where('subject_id', $subjectId),
+                    )
+                    ->when(
+                        $this->filterInt($filters, 'teacher_id'),
+                        fn ($assignmentQuery, int $assignmentTeacherId) => $assignmentQuery->where('teacher_id', $assignmentTeacherId),
                     );
             })
+            ->when(
+                $teacherId,
+                fn ($query, int $recordedByTeacherId) => $query->where('recorded_by_teacher_id', $recordedByTeacherId),
+            )
+            ->when(
+                $studentId,
+                fn ($query, int $attendanceStudentId) => $query->where('student_id', $attendanceStudentId),
+            )
+            ->when(is_string($search) && $search !== '', function ($query) use ($search): void {
+                $query->whereHas('student', function ($studentQuery) use ($search): void {
+                    $studentQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%")
+                        ->orWhere('nisn', 'like', "%{$search}%");
+                });
+            })
+            ->when(
+                is_string($status) && $status !== '',
+                fn ($query) => $query->where('status', $status),
+            )
             ->when(
                 $this->filterDate($filters, 'attendance_date'),
                 fn ($query, string $date) => $query->whereDate('attendance_date', $date),
@@ -517,11 +740,29 @@ class CsvImportExportService
      */
     protected function studentNoteRows(array $filters = []): array
     {
+        $category = $filters['category'] ?? null;
+
         return StudentNote::query()
             ->with(['student.schoolClass', 'teacher'])
             ->when($this->filterInt($filters, 'school_class_id'), function ($query, int $schoolClassId): void {
                 $query->whereHas('student', fn ($studentQuery) => $studentQuery->where('school_class_id', $schoolClassId));
             })
+            ->when(
+                $this->filterInt($filters, 'teacher_id'),
+                fn ($query, int $teacherId) => $query->where('teacher_id', $teacherId),
+            )
+            ->when(
+                is_string($category) && $category !== '',
+                fn ($query) => $query->where('category', $category),
+            )
+            ->when(
+                $this->filterDate($filters, 'date_from'),
+                fn ($query, string $date) => $query->whereDate('created_at', '>=', $date),
+            )
+            ->when(
+                $this->filterDate($filters, 'date_to'),
+                fn ($query, string $date) => $query->whereDate('created_at', '<=', $date),
+            )
             ->latest()
             ->get()
             ->map(fn (StudentNote $note): array => [
@@ -565,7 +806,7 @@ class CsvImportExportService
     {
         $parts = [$baseFilename];
 
-        foreach (['type', 'subject_id', 'school_class_id', 'attendance_date', 'date_from', 'date_to', 'category', 'level', 'usage'] as $key) {
+        foreach (['type', 'subject_id', 'school_class_id', 'teacher_id', 'student_id', 'attendance_date', 'date_from', 'date_to', 'status', 'category', 'gender', 'employment_status', 'academic_year', 'level', 'usage', 'search'] as $key) {
             $value = $filters[$key] ?? null;
 
             if ($value !== null && $value !== '') {

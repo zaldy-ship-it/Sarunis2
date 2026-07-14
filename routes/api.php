@@ -83,7 +83,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
-
+        Route::get('kelas/{schoolClass}/pertemuan', [SchoolClassController::class, 'meetings']);
     });
 
     Route::get('/debug-stateful', function () {
@@ -95,8 +95,9 @@ Route::prefix('v1')->group(function () {
             'referer' => request()->header('referer'),
             'origin' => request()->header('origin'),
         ];
-    });    Route::prefix('admin')->middleware('role.all:super_admin,admin_sekolah')->group(function () {
+    });    Route::prefix('admin')->middleware(['auth:sanctum', 'role.all:super_admin,admin_sekolah'])->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'admin']);
+        Route::get('/dashboard/stats', [\App\Http\Controllers\Admin\DashboardController::class, 'index']);
         Route::get('/absensi/rekap', [PortalDashboardController::class, 'adminAttendanceRecap']);
         Route::get('/absensi/laporan', [PortalDashboardController::class, 'adminAttendanceReport']);
         Route::get('/data-siswa', [PortalDashboardController::class, 'adminStudents']);
@@ -104,6 +105,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/data-kelas', [PortalDashboardController::class, 'adminClasses']);
 
         Route::post('/import/{type}', [ImportExportController::class, 'import']);
+        Route::get('/import/template/{type}', [ImportExportController::class, 'template']);
+        Route::get('/export/{dataset}/{format?}', [ImportExportController::class, 'export'])
+            ->whereIn('dataset', ['absensi', 'guru', 'siswa', 'kelas', 'mapel', 'catatan-siswa'])
+            ->whereIn('format', ['csv', 'xls', 'pdf']);
         Route::resource('pelanggaran', StudentViolationController::class)->except(['create', 'edit', 'show']);
 
         Route::apiResource('siswa', StudentController::class)->parameters(['siswa' => 'student']);
@@ -117,13 +122,17 @@ Route::prefix('v1')->group(function () {
         Route::delete('/semester-lock', [SemesterLockController::class, 'unlock']);
         Route::post('pengguna/migrasi-profil', [UserManagementController::class, 'migrateProfiles']);
         Route::apiResource('pengguna', UserManagementController::class)->parameters(['pengguna' => 'pengguna']);
+        Route::patch('setting/{setting}/value', [AppSettingController::class, 'updateValue']);
         Route::apiResource('setting', AppSettingController::class)->parameters(['setting' => 'setting']);
         Route::apiResource('catatan', StudentNoteController::class)->parameters(['catatan' => 'catatanSiswa']);
         Route::put('kelas/{schoolClass}/ploting', [ClassPlottingController::class, 'update']);
+        Route::get('siswa/tidak-ada-kelas', [StudentController::class, 'unassigned']);
         Route::get('/pengumuman', [AnnouncementController::class, 'page']);
         Route::apiResource('announcements', AnnouncementController::class)->parameters(['announcements' => 'announcement'])->except(['create', 'edit']);
 
         Route::prefix('schedule')->group(function () {
+            Route::get('/form-data', [ScheduleController::class, 'getFormData']);
+            Route::post('/assignments', [ScheduleController::class, 'storeAssignment']);
             Route::post('/generate', [ScheduleController::class, 'generate']);
             Route::get('/class/{classId}/{academicYear}', [ScheduleController::class, 'showClassSchedule'])->where('academicYear', '.*');
             Route::get('/teacher/{teacherId}/{academicYear}', [ScheduleController::class, 'showTeacherSchedule'])->where('academicYear', '.*');

@@ -32,6 +32,41 @@ class ScheduleController extends Controller
     ) {}
 
     /**
+     * Get data untuk form pembuatan jadwal (API)
+     */
+    public function getFormData()
+    {
+        $classes = SchoolClass::query()->orderBy('name')->get();
+        $teachers = Teacher::query()
+            ->with('subjects:id,name')
+            ->orderBy('name')
+            ->get();
+        $subjects = Subject::query()->orderBy('name')->get();
+        $dayOptions = collect(range(0, 5))
+            ->map(fn(int $day): array => [
+                'value' => $day,
+                'label' => config("schedule.day_names.{$day}", 'Hari ' . ($day + 1)),
+            ])
+            ->all();
+        $lessonPeriods = $this->lessonPeriods();
+
+        // Get active academic year from config or recent data
+        $activeYear = config('app.default_academic_year', '2025/2026');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'classes' => $classes,
+                'teachers' => $teachers,
+                'subjects' => $subjects,
+                'days' => $dayOptions,
+                'periods' => $lessonPeriods,
+                'active_year' => $activeYear,
+            ]
+        ]);
+    }
+
+    /**
      * Tampilkan halaman form generate jadwal
      */
     public function generatePage()
@@ -116,6 +151,74 @@ class ScheduleController extends Controller
                 'message' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Buat jadwal manual secara individual
+     */
+    public function storeAssignment(Request $request)
+    {
+        $validated = $request->validate([
+            'academic_year' => 'required|string',
+            'school_class_id' => 'required|exists:school_classes,id',
+            'teacher_id' => 'required|exists:teachers,id',
+            'subject_id' => 'required|exists:subjects,id',
+            'day_of_week' => 'required|integer|min:0|max:6',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+            'room' => 'nullable|string|max:50',
+        ]);
+
+        // 1. Validasi Konflik Guru
+        $teacherConflict = TeachingAssignment::where('teacher_id', $validated['teacher_id'])
+            ->where('academic_year', $validated['academic_year'])
+            ->where('day_of_week', $validated['day_of_week'])
+            ->where(function($q) use ($validated) {
+                $q->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                  ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                  ->orWhere(function($q2) use ($validated) {
+                      $q2->where('start_time', '<=', $validated['start_time'])
+                         ->where('end_time', '>=', $validated['end_time']);
+                  });
+            })->first();
+
+        if ($teacherConflict) {
+            $conflictClass = SchoolClass::find($teacherConflict->school_class_id);
+            return response()->json([
+                'success' => false,
+                'message' => "Konflik Jadwal: Guru sudah memiliki jadwal mengajar di kelas {$conflictClass->name} pada hari dan jam tersebut."
+            ], 422);
+        }
+
+        // 2. Validasi Konflik Kelas (Kelas sudah ada jadwal di jam tersebut)
+        $classConflict = TeachingAssignment::where('school_class_id', $validated['school_class_id'])
+            ->where('academic_year', $validated['academic_year'])
+            ->where('day_of_week', $validated['day_of_week'])
+            ->where(function($q) use ($validated) {
+                $q->whereBetween('start_time', [$validated['start_time'], $validated['end_time']])
+                  ->orWhereBetween('end_time', [$validated['start_time'], $validated['end_time']])
+                  ->orWhere(function($q2) use ($validated) {
+                      $q2->where('start_time', '<=', $validated['start_time'])
+                         ->where('end_time', '>=', $validated['end_time']);
+                  });
+            })->first();
+
+        if ($classConflict) {
+            $conflictSubject = Subject::find($classConflict->subject_id);
+            return response()->json([
+                'success' => false,
+                'message' => "Konflik Jadwal: Kelas sudah memiliki pelajaran {$conflictSubject->name} pada hari dan jam tersebut."
+            ], 422);
+        }
+
+        // 3. Simpan
+        $assignment = TeachingAssignment::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jadwal berhasil disimpan.',
+            'data' => $assignment
+        ]);
     }
 
     /**

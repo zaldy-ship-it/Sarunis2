@@ -58,4 +58,12 @@ class StudentController extends Controller
             'message' => 'Data siswa berhasil dihapus.',
         ]);
     }
+
+    public function unassigned(): JsonResponse
+    {
+        $students = Student::query()->whereNull('school_class_id')->orderBy('name')->get();
+        return response()->json([
+            'data' => $students
+        ]);
+    }
 }

@@ -13,10 +13,14 @@ class UpsertAnnouncementRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $title = $this->input('title');
+        $content = $this->input('content');
+        $targetRoles = $this->input('target_roles');
+
         $this->merge([
-            'title' => is_string($this->title) ? trim($this->title) : $this->title,
-            'content' => is_string($this->content) ? trim($this->content) : $this->content,
-            'target_roles' => $this->filled('target_roles') ? (array) $this->target_roles : null,
+            'title' => is_string($title) ? trim($title) : $title,
+            'content' => is_string($content) ? trim($content) : $content,
+            'target_roles' => $targetRoles !== null && $targetRoles !== '' ? (array) $targetRoles : null,
         ]);
     }
 

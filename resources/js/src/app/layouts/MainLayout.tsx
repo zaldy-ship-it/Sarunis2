@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { School, ChevronLeft, ChevronRight, LogOut, Menu, Search, Bell, ChevronDown, User, Settings } from 'lucide-react';
+import { School, ChevronLeft, ChevronRight, LogOut, Menu, Search, Bell, ChevronDown, ChevronUp, User, Settings, Circle } from 'lucide-react';
 import { cn } from '../components/ui/utils'; // Assuming this utility is present
 import { useAuth } from '../context/AuthContext';
-import { NAV_GROUPS, ROLE_LABELS } from '../utils/constants';
+import { getNavGroups, ROLE_LABELS } from '../utils/constants';
 
 const AV_COLORS = ["bg-blue-600","bg-violet-600","bg-emerald-600","bg-amber-600","bg-rose-600","bg-cyan-600","bg-orange-600"];
 function Av({ name, sz = "md", className }: { name: string; sz?: "xs"|"sm"|"md"|"lg"|"xl"; className?: string }) {
@@ -31,12 +31,19 @@ export const MainLayout = () => {
     const location = useLocation();
     const [coll, setColl] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+    const toggleMenu = (id: string) => {
+        if (coll) setColl(false); // expand sidebar if trying to open a menu
+        setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     if (!user) {
         return <div>Memuat...</div>;
     }
 
     const currentRole = user.roles[0]; // simplify to first role for now
+    const navGroups = getNavGroups(user.activePortal);
 
     const body = (
         <div className={cn("flex flex-col h-full bg-slate-900 transition-[width] duration-300 ease-in-out overflow-hidden", coll ? "w-16" : "w-60")}>
@@ -55,22 +62,59 @@ export const MainLayout = () => {
 
             {/* Nav */}
             <nav className="flex-1 overflow-y-auto py-2">
-                {NAV_GROUPS.map(({ group, items }) => (
+                {navGroups.map(({ group, items }) => (
                     <div key={group} className="mb-1">
                         {!coll && <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-4 pt-4 pb-1.5">{group}</p>}
                         {coll && group !== "Utama" && <div className="h-px bg-white/5 mx-3 my-2" />}
                         {items.map(item => {
                             const Ic = item.icon; 
-                            const active = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                            const hasSub = item.subItems && item.subItems.length > 0;
+                            const isActive = item.path 
+                                ? (location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path)))
+                                : (hasSub && item.subItems!.some(sub => location.pathname.startsWith(sub.path!)));
+                            
+                            const isOpen = openMenus[item.id];
+
                             return (
-                                <button key={item.id} onClick={() => { navigate(item.path); setMobileOpen(false); }} title={coll ? item.label : undefined}
-                                    className={cn("w-full flex items-center gap-2.5 text-sm transition-all duration-100 relative group",
-                                        coll ? "justify-center py-3 px-0" : "px-4 py-2",
-                                        active ? "text-blue-400 bg-blue-500/10" : "text-slate-400 hover:text-white hover:bg-white/5")}>
-                                    {active && <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />}
-                                    <Ic className={cn("w-4 h-4 flex-shrink-0", active && "text-blue-400")} />
-                                    {!coll && <span className="truncate text-sm">{item.label}</span>}
-                                </button>
+                                <div key={item.id}>
+                                    <button onClick={() => { 
+                                        if (hasSub) {
+                                            toggleMenu(item.id);
+                                        } else if (item.path) {
+                                            navigate(item.path); setMobileOpen(false); 
+                                        }
+                                    }} title={coll ? item.label : undefined}
+                                        className={cn("w-full flex items-center gap-2.5 text-sm transition-all duration-100 relative group",
+                                            coll ? "justify-center py-3 px-0" : "px-4 py-2",
+                                            isActive && !hasSub ? "text-blue-400 bg-blue-500/10" : "text-slate-400 hover:text-white hover:bg-white/5",
+                                            hasSub && isOpen ? "text-white" : ""
+                                        )}>
+                                        {isActive && !hasSub && <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />}
+                                        <Ic className={cn("w-4 h-4 flex-shrink-0", isActive ? "text-blue-400" : "")} />
+                                        {!coll && <span className="truncate text-sm flex-1 text-left">{item.label}</span>}
+                                        {!coll && hasSub && (
+                                            isOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                                        )}
+                                    </button>
+                                    
+                                    {/* Sub Items */}
+                                    {hasSub && isOpen && !coll && (
+                                        <div className="mt-1 mb-2">
+                                            {item.subItems!.map(sub => {
+                                                const isSubActive = location.pathname.startsWith(sub.path!);
+                                                return (
+                                                    <button key={sub.id} onClick={() => { navigate(sub.path!); setMobileOpen(false); }}
+                                                        className={cn("w-full flex items-center gap-3 pl-10 pr-4 py-1.5 text-[13px] transition-colors relative",
+                                                            isSubActive ? "text-blue-400" : "text-slate-400 hover:text-white"
+                                                        )}>
+                                                        <Circle className={cn("w-1.5 h-1.5", isSubActive ? "fill-blue-400" : "")} />
+                                                        <span className="truncate">{sub.label}</span>
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
                             );
                         })}
                     </div>
