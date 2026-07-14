@@ -90,6 +90,27 @@ class CsvImportExportService
                 'birth_date' => $row['birth_date'] ?? null,
                 'phone' => $row['phone'] ?? null,
                 'address' => $row['address'] ?? null,
+                'detail_siswa' => [
+                    'religion' => $row['religion'] ?? null,
+                    'birth_place' => $row['birth_place'] ?? null,
+                    'address_street' => $row['address_street'] ?? null,
+                    'address_village' => $row['address_village'] ?? null,
+                    'address_district' => $row['address_district'] ?? null,
+                    'address_province' => $row['address_province'] ?? null,
+                    'address_city' => $row['address_city'] ?? null,
+                    'father_name' => $row['father_name'] ?? null,
+                    'father_education' => $row['father_education'] ?? null,
+                    'father_occupation' => $row['father_occupation'] ?? null,
+                    'mother_name' => $row['mother_name'] ?? null,
+                    'mother_education' => $row['mother_education'] ?? null,
+                    'mother_occupation' => $row['mother_occupation'] ?? null,
+                    'parent_address' => $row['parent_address'] ?? null,
+                    'parent_province' => $row['parent_province'] ?? null,
+                    'parent_city' => $row['parent_city'] ?? null,
+                    'postal_code' => $row['postal_code'] ?? null,
+                    'parent_phone' => $row['parent_phone'] ?? null,
+                    'previous_school' => $row['previous_school'] ?? null,
+                ],
             ];
 
             $validator = Validator::make($payload, [
@@ -101,6 +122,26 @@ class CsvImportExportService
                 'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
                 'phone' => ['nullable', 'string', 'min:10', 'max:20', 'regex:/^[0-9+\-\s]+$/'],
                 'address' => ['nullable', 'string', 'max:1000'],
+                'detail_siswa' => ['nullable', 'array'],
+                'detail_siswa.religion' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.birth_place' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.address_street' => ['nullable', 'string', 'max:1000'],
+                'detail_siswa.address_village' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.address_district' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.address_province' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.address_city' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.father_name' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.father_education' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.father_occupation' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.mother_name' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.mother_education' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.mother_occupation' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.parent_address' => ['nullable', 'string', 'max:1000'],
+                'detail_siswa.parent_province' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.parent_city' => ['nullable', 'string', 'max:255'],
+                'detail_siswa.postal_code' => ['nullable', 'string', 'max:10'],
+                'detail_siswa.parent_phone' => ['nullable', 'string', 'max:30'],
+                'detail_siswa.previous_school' => ['nullable', 'string', 'max:255'],
             ]);
 
             $validator->validate();
@@ -290,7 +331,13 @@ class CsvImportExportService
     public function template(string $type): StreamedResponse
     {
         [$filename, $headers] = match ($type) {
-            'siswa' => ['template-import-siswa.csv', ['nik', 'nisn', 'name', 'gender', 'birth_date', 'phone', 'address', 'school_class_id', 'class_name']],
+            'siswa' => ['template-import-siswa.csv', [
+                'nik', 'nisn', 'name', 'gender', 'birth_date', 'phone', 'address', 'school_class_id', 'class_name',
+                'religion', 'birth_place', 'address_street', 'address_village', 'address_district',
+                'address_province', 'address_city', 'father_name', 'father_education', 'father_occupation',
+                'mother_name', 'mother_education', 'mother_occupation', 'parent_address', 'parent_province',
+                'parent_city', 'postal_code', 'parent_phone', 'previous_school'
+            ]],
             'guru' => ['template-import-guru.csv', ['nip', 'nik', 'name', 'birth_place', 'birth_date', 'gender', 'religion', 'employment_status', 'position', 'join_date', 'last_education', 'major', 'university', 'phone', 'address']],
             'jadwal' => ['template-import-jadwal.csv', ['nip_guru', 'nama_mapel', 'nama_kelas', 'hari', 'jam_mulai', 'jam_selesai', 'ruangan']],
             default => abort(404, 'Template import tidak ditemukan.'),
@@ -397,7 +444,13 @@ class CsvImportExportService
 
     protected function studentHeaders(): array
     {
-        return ['id', 'nik', 'nisn', 'name', 'gender', 'birth_date', 'phone', 'address', 'class_name'];
+        return [
+            'id', 'nik', 'nisn', 'name', 'gender', 'birth_date', 'phone', 'address', 'class_name',
+            'religion', 'birth_place', 'address_street', 'address_village', 'address_district',
+            'address_province', 'address_city', 'father_name', 'father_education', 'father_occupation',
+            'mother_name', 'mother_education', 'mother_occupation', 'parent_address', 'parent_province',
+            'parent_city', 'postal_code', 'parent_phone', 'previous_school'
+        ];
     }
 
     protected function teacherHeaders(): array
@@ -436,7 +489,7 @@ class CsvImportExportService
         $search = $filters['search'] ?? null;
 
         return Student::query()
-            ->with('schoolClass')
+            ->with(['schoolClass', 'detailSiswa'])
             ->when(
                 $this->filterInt($filters, 'school_class_id'),
                 fn ($query, int $schoolClassId) => $query->where('school_class_id', $schoolClassId),
@@ -471,6 +524,25 @@ class CsvImportExportService
                 $student->phone,
                 $student->address,
                 $student->schoolClass?->name,
+                $student->detailSiswa?->religion,
+                $student->detailSiswa?->birth_place,
+                $student->detailSiswa?->address_street,
+                $student->detailSiswa?->address_village,
+                $student->detailSiswa?->address_district,
+                $student->detailSiswa?->address_province,
+                $student->detailSiswa?->address_city,
+                $student->detailSiswa?->father_name,
+                $student->detailSiswa?->father_education,
+                $student->detailSiswa?->father_occupation,
+                $student->detailSiswa?->mother_name,
+                $student->detailSiswa?->mother_education,
+                $student->detailSiswa?->mother_occupation,
+                $student->detailSiswa?->parent_address,
+                $student->detailSiswa?->parent_province,
+                $student->detailSiswa?->parent_city,
+                $student->detailSiswa?->postal_code,
+                $student->detailSiswa?->parent_phone,
+                $student->detailSiswa?->previous_school,
             ])
             ->all();
     }
