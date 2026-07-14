@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class StudentService
 {
@@ -20,7 +22,7 @@ class StudentService
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
         return Student::query()
-            ->with(['user', 'schoolClass', 'detailSiswa'])
+            ->with(['user', 'parentUser', 'schoolClass', 'detailSiswa'])
             ->latest()
             ->paginate($perPage);
     }
@@ -43,11 +45,12 @@ class StudentService
 
                 $student = Student::create($data);
                 $this->syncDetailSiswa($student, $detailSiswaData);
-                $student->load('user');
+                $this->syncParentUser($student);
+                $student->refresh()->load('user');
 
                 $this->userRoleService->syncStudentRole($student);
 
-                return $student->load(['user', 'schoolClass', 'detailSiswa']);
+                return $student->load(['user', 'parentUser', 'schoolClass', 'detailSiswa']);
             });
         } catch (\Throwable $throwable) {
             $this->profilePhotoService->delete($storedPhotoPath);
@@ -84,7 +87,8 @@ class StudentService
                     'photo_path' => $newPhotoPath,
                 ]);
                 $this->syncDetailSiswa($student, $detailSiswaData);
-                $student->load('user');
+                $this->syncParentUser($student);
+                $student->refresh()->load('user');
 
                 if ($oldUserId !== null && $oldUserId !== $student->user_id) {
                     $this->userRoleService->detachStudentRole(User::find($oldUserId));
@@ -93,7 +97,7 @@ class StudentService
                 $this->userRoleService->syncStudentRole($student);
                 $this->syncLinkedUserPasswordFromBirthDate($student);
 
-                return $student->load(['user', 'schoolClass', 'detailSiswa']);
+                return $student->load(['user', 'parentUser', 'schoolClass', 'detailSiswa']);
             });
 
             if ($storedPhotoPath !== null && $oldPhotoPath !== null && $oldPhotoPath !== $storedPhotoPath) {
@@ -163,6 +167,10 @@ class StudentService
         $normalized = [];
 
         foreach ($fields as $field) {
+            if (! array_key_exists($field, $detailSiswa)) {
+                continue;
+            }
+
             $value = $detailSiswa[$field] ?? null;
 
             if (is_string($value)) {
@@ -216,5 +224,82 @@ class StudentService
         $student->user->forceFill([
             'password' => $defaultPassword,
         ])->save();
+    }
+
+    protected function syncParentUser(?Student $student): void
+    {
+        if ($student === null) {
+            return;
+        }
+
+        $student->loadMissing(['detailSiswa', 'parentUser']);
+
+        $parentUser = $student->parentUser;
+
+        if ($parentUser === null) {
+            $parentUser = User::query()->create([
+                'name' => $this->parentUserName($student),
+                'email' => $this->uniqueGeneratedParentEmail($student),
+                'password' => $this->defaultParentPassword($student),
+                'roles' => [UserRole::ORANG_TUA->value],
+            ]);
+
+            $student->forceFill(['parent_user_id' => $parentUser->id])->save();
+        } else {
+            $this->userRoleService->ensureRoles($parentUser, [UserRole::ORANG_TUA]);
+            $parentUser->forceFill([
+                'name' => $parentUser->name ?: $this->parentUserName($student),
+                'password' => $this->defaultParentPassword($student),
+            ])->save();
+        }
+
+        $student->setRelation('parentUser', $parentUser);
+    }
+
+    protected function parentUserName(Student $student): string
+    {
+        $motherName = trim((string) ($student->detailSiswa?->mother_name ?? ''));
+        $fatherName = trim((string) ($student->detailSiswa?->father_name ?? ''));
+
+        if ($motherName !== '') {
+            return $motherName;
+        }
+
+        if ($fatherName !== '') {
+            return $fatherName;
+        }
+
+        return 'Orang Tua '.$student->name;
+    }
+
+    protected function uniqueGeneratedParentEmail(Student $student): string
+    {
+        $studentSlug = $this->emailSlug($student->name) ?: 'siswa';
+        $parentSlug = $this->emailSlug((string) ($student->detailSiswa?->mother_name ?? '')) ?: 'orangtua';
+        $base = $studentSlug.'.'.$parentSlug;
+        $email = $base.'@sch.id';
+        $counter = 2;
+
+        while (User::query()->where('email', $email)->exists()) {
+            $email = $base.$counter.'@sch.id';
+            $counter++;
+        }
+
+        return $email;
+    }
+
+    protected function emailSlug(string $value): string
+    {
+        return trim((string) Str::of($value)
+            ->ascii()
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '.')
+            ->replaceMatches('/\.+/', '.')
+            ->trim('.'));
+    }
+
+    protected function defaultParentPassword(Student $student): string
+    {
+        return $student->birth_date?->format('dmY') ?: $student->nik;
     }
 }

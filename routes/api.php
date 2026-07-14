@@ -68,6 +68,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AuthRecoveryController;
 use App\Http\Controllers\ClassAttendanceController;
 use App\Http\Controllers\HomeroomPortalController;
+use App\Http\Controllers\ParentPortalController;
 use App\Http\Controllers\PortalAuthPageController;
 use App\Http\Controllers\PortalDashboardController;
 use App\Http\Controllers\ScheduleController;
@@ -172,11 +173,20 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('orang-tua')->middleware('role:orang_tua')->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'parent']);
+        Route::get('/anak', [ParentPortalController::class, 'children']);
+        Route::get('/jadwal-sekolah', [ParentPortalController::class, 'schedule']);
+        Route::get('/absensi-mapel', [ParentPortalController::class, 'subjectAttendance']);
+        Route::get('/absensi-kelas', [ParentPortalController::class, 'classAttendance']);
+        Route::get('/catatan', [ParentPortalController::class, 'notes']);
         Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
     });
 
     Route::prefix('siswa')->middleware('role:siswa')->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'student']);
+        Route::get('/jadwal-sekolah', [StudentPortalController::class, 'schedule']);
+        Route::get('/absensi-mapel', [StudentPortalController::class, 'subjectAttendance']);
+        Route::get('/absensi-kelas', [StudentPortalController::class, 'classAttendance']);
+        Route::get('/catatan', [StudentPortalController::class, 'notes']);
         Route::get('/kalender-akademik', [AcademicCalendarPortalController::class, 'index']);
     });
 

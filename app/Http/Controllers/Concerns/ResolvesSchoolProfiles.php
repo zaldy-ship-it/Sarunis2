@@ -25,4 +25,23 @@ trait ResolvesSchoolProfiles
 
         return $student;
     }
+
+    protected function parentStudentFromRequest(Request $request): Student
+    {
+        $studentId = $request->integer('student_id');
+
+        $query = $request->user()
+            ?->parentStudents()
+            ->with(['schoolClass', 'detailSiswa']);
+
+        abort_if($query === null, 403, 'Akun ini belum terhubung ke data orang tua.');
+
+        $student = $studentId > 0
+            ? $query->whereKey($studentId)->first()
+            : $query->orderBy('name')->first();
+
+        abort_if($student === null, 403, 'Akun ini belum terhubung ke data siswa.');
+
+        return $student;
+    }
 }

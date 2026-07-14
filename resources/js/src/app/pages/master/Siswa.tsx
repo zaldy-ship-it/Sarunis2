@@ -14,6 +14,12 @@ interface Student {
     address: string | null;
     school_class_id: number | null;
     school_class?: { id: number; name: string };
+    parent_user?: { id: number; name: string; email: string } | null;
+    detail_siswa?: {
+        father_name?: string | null;
+        mother_name?: string | null;
+        parent_phone?: string | null;
+    } | null;
 }
 
 interface SchoolClass {
@@ -45,6 +51,9 @@ export const Siswa = () => {
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [selectedClass, setSelectedClass] = useState('');
+    const [fatherName, setFatherName] = useState('');
+    const [motherName, setMotherName] = useState('');
+    const [parentPhone, setParentPhone] = useState('');
     const [importFile, setImportFile] = useState<File | null>(null);
 
     useEffect(() => {
@@ -89,6 +98,9 @@ export const Siswa = () => {
         setPhone('');
         setAddress('');
         setSelectedClass('');
+        setFatherName('');
+        setMotherName('');
+        setParentPhone('');
         setIsFormOpen(true);
     };
 
@@ -102,6 +114,9 @@ export const Siswa = () => {
         setPhone(student.phone || '');
         setAddress(student.address || '');
         setSelectedClass(student.school_class_id?.toString() || '');
+        setFatherName(student.detail_siswa?.father_name || '');
+        setMotherName(student.detail_siswa?.mother_name || '');
+        setParentPhone(student.detail_siswa?.parent_phone || '');
         setIsFormOpen(true);
     };
 
@@ -118,6 +133,11 @@ export const Siswa = () => {
             phone: phone || null,
             address: address || null,
             school_class_id: selectedClass ? parseInt(selectedClass) : null,
+            detail_siswa: {
+                father_name: fatherName || null,
+                mother_name: motherName || null,
+                parent_phone: parentPhone || null,
+            },
         };
 
         try {
@@ -234,6 +254,7 @@ export const Siswa = () => {
                                     <th className="py-3 px-4">Gender</th>
                                     <th className="py-3 px-4">Kelas</th>
                                     <th className="py-3 px-4">Kontak</th>
+                                    <th className="py-3 px-4">Akun Orang Tua</th>
                                     <th className="py-3 px-4">Alamat</th>
                                     <th className="py-3 px-4 text-right">Aksi</th>
                                 </tr>
@@ -259,6 +280,14 @@ export const Siswa = () => {
                                             )}
                                         </td>
                                         <td className="py-3.5 px-4 text-xs text-slate-500">{student.phone || '-'}</td>
+                                        <td className="py-3.5 px-4 text-xs text-slate-500">
+                                            {student.parent_user ? (
+                                                <>
+                                                    <span className="block font-semibold text-slate-700">{student.parent_user.name}</span>
+                                                    <span>{student.parent_user.email}</span>
+                                                </>
+                                            ) : '-'}
+                                        </td>
                                         <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs truncate">{student.address || '-'}</td>
                                         <td className="py-3.5 px-4 text-right">
                                             <div className="flex justify-end gap-1.5">
@@ -360,6 +389,27 @@ export const Siswa = () => {
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Alamat Tempat Tinggal</label>
                                 <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-100">
+                                <h3 className="text-sm font-semibold text-slate-800">Data Orang Tua</h3>
+                                <p className="mt-1 text-xs text-slate-500">Akun orang tua otomatis dibuat. Email memakai nama siswa dan nama ibu, password default memakai tanggal lahir siswa format ddmmyyyy.</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Nama Ayah</label>
+                                    <input type="text" value={fatherName} onChange={(e) => setFatherName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Nama Ibu</label>
+                                    <input type="text" value={motherName} onChange={(e) => setMotherName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Nomor Telepon Orang Tua</label>
+                                <input type="text" value={parentPhone} onChange={(e) => setParentPhone(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
                             </div>
 
                             <div className="pt-2 border-t border-slate-100 flex justify-end gap-2.5">

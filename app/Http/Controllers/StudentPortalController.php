@@ -13,6 +13,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use App\Models\SubjectAttendance;
+use App\Models\StudentNote;
 
 class StudentPortalController extends Controller
 {
@@ -72,6 +73,66 @@ class StudentPortalController extends Controller
         return response()->json([
             'data' => $this->classAttendanceService->recapForStudent($student, $filters),
         ]);
+    }
+
+    public function subjectAttendance(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'teaching_assignment_id' => ['nullable', 'integer', Rule::exists('teaching_assignments', 'id')],
+            'subject_id' => ['nullable', 'integer', Rule::exists('subjects', 'id')],
+            'attendance_date' => ['nullable', 'date'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $student = $this->studentFromRequest($request);
+
+        $records = SubjectAttendance::query()
+            ->with(['teachingAssignment.subject', 'teachingAssignment.teacher', 'teachingAssignment.schoolClass'])
+            ->where('student_id', $student->id)
+            ->whereHas('teachingAssignment', function ($query) use ($student, $filters): void {
+                $query
+                    ->where('school_class_id', $student->school_class_id)
+                    ->when(
+                        $filters['teaching_assignment_id'] ?? null,
+                        fn ($assignmentQuery, int $assignmentId) => $assignmentQuery->where('id', $assignmentId),
+                    )
+                    ->when(
+                        $filters['subject_id'] ?? null,
+                        fn ($subjectQuery, int $subjectId) => $subjectQuery->where('subject_id', $subjectId),
+                    );
+            })
+            ->when(
+                $filters['attendance_date'] ?? null,
+                fn ($query, string $attendanceDate) => $query->whereDate('attendance_date', $attendanceDate),
+            )
+            ->when(
+                $filters['date_from'] ?? null,
+                fn ($query, string $dateFrom) => $query->whereDate('attendance_date', '>=', $dateFrom),
+            )
+            ->when(
+                $filters['date_to'] ?? null,
+                fn ($query, string $dateTo) => $query->whereDate('attendance_date', '<=', $dateTo),
+            )
+            ->orderByDesc('attendance_date')
+            ->get();
+
+        return response()->json([
+            'data' => $records,
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    public function notes(Request $request): JsonResponse
+    {
+        $student = $this->studentFromRequest($request);
+
+        return response()->json([
+            'data' => StudentNote::query()
+                ->with(['teacher', 'user'])
+                ->where('student_id', $student->id)
+                ->latest()
+                ->get(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function schedulePage(Request $request): View

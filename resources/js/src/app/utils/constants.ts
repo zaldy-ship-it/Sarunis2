@@ -144,12 +144,14 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
         group: "Kegiatan Belajar",
         items: [
             {
-                id: "teacher-absensi", label: "Absensi Kelas", icon: CheckSquare,
+                id: "teacher-absensi", label: "Absensi", icon: CheckSquare,
                 subItems: [
                     { id: "teacher-absensi-data-kelas", label: "Lihat Data Kelas", path: "/guru-mapel/absensi/data-kelas" },
                     { id: "teacher-absensi-input", label: "Input Absen Kelas", path: "/guru-mapel/absensi/input" },
-                    { id: "teacher-absensi-riwayat", label: "Riwayat Absensi", path: "/guru-mapel/absensi/riwayat" },
-                    { id: "teacher-absensi-rekap", label: "Rekap Kehadiran", path: "/guru-mapel/absensi/rekap" },
+                    { id: "teacher-absensi-riwayat", label: "Riwayat Absensi Kelas", path: "/guru-mapel/absensi/riwayat" },
+                    { id: "teacher-absensi-rekap", label: "Rekap Absensi Kelas", path: "/guru-mapel/absensi/rekap" },
+                    { id: "teacher-absensi-riwayat-mapel", label: "Riwayat Absensi Mapel", path: "/guru-mapel/absensi/riwayat-mapel" },
+                    { id: "teacher-absensi-rekap-mapel", label: "Rekap Absensi Mapel", path: "/guru-mapel/absensi/rekap-mapel" },
                 ]
             },
         ]
@@ -194,19 +196,76 @@ export const WALIKELAS_NAV_GROUPS: NavGroup[] = [
     ...INHERITED_WALIKELAS_TEACHER_GROUPS // Inherit teacher menus since they also teach
 ];
 
+export const STUDENT_NAV_GROUPS: NavGroup[] = [
+    {
+        group: "Siswa",
+        items: [
+            { id: "student-schedule", label: "Jadwal Pelajaran", icon: CalendarDays, path: "/siswa/jadwal-pelajaran" },
+            { id: "student-subject-attendance", label: "Absensi Mapel", icon: BookOpen, path: "/siswa/absensi-mapel" },
+            { id: "student-class-attendance", label: "Absensi Kelas", icon: CheckSquare, path: "/siswa/absensi-kelas" },
+            { id: "student-notes", label: "Catatan", icon: FileText, path: "/siswa/catatan" },
+        ]
+    }
+];
+
+export const PARENT_NAV_GROUPS: NavGroup[] = [
+    {
+        group: "Orang Tua",
+        items: [
+            { id: "parent-dashboard", label: "Ringkasan Anak", icon: LayoutDashboard, path: "/orang-tua/dashboard" },
+            { id: "parent-subject-attendance", label: "Absensi Mapel", icon: BookOpen, path: "/orang-tua/absensi-mapel" },
+            { id: "parent-class-attendance", label: "Absensi Kelas", icon: CheckSquare, path: "/orang-tua/absensi-kelas" },
+            { id: "parent-notes", label: "Catatan Anak", icon: FileText, path: "/orang-tua/catatan" },
+        ]
+    }
+];
+
 const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities): NavGroup[] => {
     const hasTeachingSchedule = capabilities?.hasTeachingSchedule;
     const hasHomeroomClass = capabilities?.hasHomeroomClass;
+    const homeroomOnlySubItems = new Set([
+        'teacher-absensi-data-kelas',
+        'teacher-absensi-input',
+        'teacher-absensi-riwayat',
+        'teacher-absensi-rekap',
+    ]);
+    const teachingOnlySubItems = new Set([
+        'teacher-absensi-riwayat-mapel',
+        'teacher-absensi-rekap-mapel',
+    ]);
+
+    const filterSubItems = (subItems?: NavItem['subItems']) => {
+        if (!subItems) return subItems;
+
+        return subItems.filter((item) => {
+            if (homeroomOnlySubItems.has(item.id)) {
+                return hasHomeroomClass !== false;
+            }
+
+            if (teachingOnlySubItems.has(item.id)) {
+                return hasTeachingSchedule !== false;
+            }
+
+            return true;
+        });
+    };
 
     return groups
         .map((group) => ({
             ...group,
-            items: group.items.filter((item) => {
+            items: group.items.map((item) => ({
+                ...item,
+                subItems: filterSubItems(item.subItems),
+            })).filter((item) => {
                 if (item.id === 'teacher-jadwal') {
                     return hasTeachingSchedule !== false;
                 }
 
-                if (item.id === 'teacher-absensi' || item.id === 'walikelas-absensi' || item.id === 'walikelas-siswa') {
+                if (item.id === 'teacher-absensi') {
+                    return (hasTeachingSchedule !== false || hasHomeroomClass !== false) && (item.subItems?.length || 0) > 0;
+                }
+
+                if (item.id === 'walikelas-absensi' || item.id === 'walikelas-siswa') {
                     return hasHomeroomClass !== false;
                 }
 
@@ -224,6 +283,10 @@ export const getNavGroups = (portal?: string, capabilities?: NavCapabilities): N
             return applyCapabilityFilter(WALIKELAS_NAV_GROUPS);
         case 'guru-mapel':
             return applyCapabilityFilter(TEACHER_NAV_GROUPS);
+        case 'siswa':
+            return STUDENT_NAV_GROUPS;
+        case 'orang-tua':
+            return PARENT_NAV_GROUPS;
         case 'admin':
         default:
             return ADMIN_NAV_GROUPS;

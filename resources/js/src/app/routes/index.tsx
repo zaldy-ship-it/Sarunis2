@@ -13,9 +13,11 @@ import { Mapel } from '../pages/akademik/Mapel';
 import { Kelas } from '../pages/akademik/Kelas';
 import { Kalender } from '../pages/akademik/Kalender';
 import { GuruMapelJadwal } from '../pages/guru-mapel/GuruMapelJadwal';
+import { SubjectAttendanceRecap } from '../pages/guru-mapel/SubjectAttendanceRecap';
 import { WaliKelasAbsensi } from '../pages/walikelas/WaliKelasAbsensi';
 import { ClassAttendanceRecap } from '../pages/walikelas/ClassAttendanceRecap';
 import { ClassStudents } from '../pages/walikelas/ClassStudents';
+import { StudentClassAttendance, StudentNotes, StudentSchedule, StudentSubjectAttendance } from '../pages/siswa/StudentPages';
 import { AdminRecapExport } from '../pages/absensi/AdminRecapExport';
 import { Pengumuman } from '../pages/pengumuman/Pengumuman';
 import { Toaster } from 'sonner';
@@ -101,6 +103,8 @@ const router = createBrowserRouter([
             { path: '/guru-mapel/absensi/input', element: <WaliKelasAbsensi pageTitle="Absensi Kelas" pageDescription="Pilih pertemuan kelas perwalian, lalu isi kehadiran harian siswa." /> },
             { path: '/guru-mapel/absensi/riwayat', element: <ClassAttendanceRecap mode="history" pageTitle="Riwayat Absensi Kelas" pageDescription="Lihat catatan absensi kelas perwalian berdasarkan tanggal." /> },
             { path: '/guru-mapel/absensi/rekap', element: <ClassAttendanceRecap mode="recap" pageTitle="Rekap Absensi Kelas" pageDescription="Ringkas kehadiran siswa kelas perwalian berdasarkan periode." /> },
+            { path: '/guru-mapel/absensi/riwayat-mapel', element: <SubjectAttendanceRecap mode="history" pageTitle="Riwayat Absensi Mapel" pageDescription="Lihat catatan absensi per mata pelajaran yang diajar." /> },
+            { path: '/guru-mapel/absensi/rekap-mapel', element: <SubjectAttendanceRecap mode="recap" pageTitle="Rekap Absensi Mapel" pageDescription="Ringkas kehadiran siswa untuk mata pelajaran yang diajar." /> },
             { path: '/guru-mapel/profil', element: <Placeholder title="Profil Saya" /> },
  
             // --- WALI KELAS ROUTES ---
@@ -111,6 +115,19 @@ const router = createBrowserRouter([
             { path: '/walikelas/absensi/rekap', element: <ClassAttendanceRecap mode="recap" /> },
             { path: '/walikelas/siswa', element: <ClassStudents pageTitle="Data Siswa Kelas" pageDescription="Lihat seluruh siswa pada kelas yang menjadi tanggung jawab wali kelas." /> },
             { path: '/walikelas/rapor', element: <Placeholder title="Rapor & Nilai Kelas" /> },
+
+            // --- SISWA ROUTES ---
+            { path: '/siswa/dashboard', element: <StudentSchedule /> },
+            { path: '/siswa/jadwal-pelajaran', element: <StudentSchedule /> },
+            { path: '/siswa/absensi-mapel', element: <StudentSubjectAttendance /> },
+            { path: '/siswa/absensi-kelas', element: <StudentClassAttendance /> },
+            { path: '/siswa/catatan', element: <StudentNotes /> },
+
+            // --- ORANG TUA ROUTES ---
+            { path: '/orang-tua/dashboard', element: <StudentSchedule portal="orang-tua" /> },
+            { path: '/orang-tua/absensi-mapel', element: <StudentSubjectAttendance portal="orang-tua" /> },
+            { path: '/orang-tua/absensi-kelas', element: <StudentClassAttendance portal="orang-tua" /> },
+            { path: '/orang-tua/catatan', element: <StudentNotes portal="orang-tua" /> },
         ],
     },
 ]);
