@@ -41,6 +41,11 @@ export type NavGroup = {
     items: NavItem[];
 };
 
+export type NavCapabilities = {
+    hasTeachingSchedule?: boolean | null;
+    hasHomeroomClass?: boolean | null;
+};
+
 export const ADMIN_NAV_GROUPS: NavGroup[] = [
     {
         group: "Utama",
@@ -141,19 +146,12 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
             {
                 id: "teacher-absensi", label: "Absensi Kelas", icon: CheckSquare,
                 subItems: [
+                    { id: "teacher-absensi-data-kelas", label: "Lihat Data Kelas", path: "/guru-mapel/absensi/data-kelas" },
                     { id: "teacher-absensi-input", label: "Input Absen Kelas", path: "/guru-mapel/absensi/input" },
                     { id: "teacher-absensi-riwayat", label: "Riwayat Absensi", path: "/guru-mapel/absensi/riwayat" },
                     { id: "teacher-absensi-rekap", label: "Rekap Kehadiran", path: "/guru-mapel/absensi/rekap" },
                 ]
             },
-            {
-                id: "teacher-lms", label: "E-Learning", icon: BookOpen,
-                subItems: [
-                    { id: "teacher-lms-nilai", label: "Input Nilai", path: "/guru-mapel/lms/nilai" },
-                    { id: "teacher-lms-materi", label: "Upload Materi", path: "/guru-mapel/lms/materi" },
-                ]
-            },
-            { id: "teacher-pengumuman", label: "Pengumuman Kelas", icon: Speaker, path: "/guru-mapel/pengumuman" },
         ]
     },
     {
@@ -163,6 +161,14 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
         ]
     }
 ];
+
+const INHERITED_WALIKELAS_TEACHER_GROUPS: NavGroup[] = TEACHER_NAV_GROUPS
+    .filter(g => g.group !== "Utama")
+    .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.id !== "teacher-absensi"),
+    }))
+    .filter((group) => group.items.length > 0);
 
 export const WALIKELAS_NAV_GROUPS: NavGroup[] = [
     {
@@ -177,23 +183,47 @@ export const WALIKELAS_NAV_GROUPS: NavGroup[] = [
             {
                 id: "walikelas-absensi", label: "Absensi Harian", icon: CheckSquare,
                 subItems: [
+                    { id: "walikelas-absensi-data-kelas", label: "Lihat Data Kelas", path: "/walikelas/absensi/data-kelas" },
                     { id: "walikelas-absensi-input", label: "Input Absen Kelas", path: "/walikelas/absensi/input" },
+                    { id: "walikelas-absensi-riwayat", label: "Riwayat Absensi", path: "/walikelas/absensi/riwayat" },
                     { id: "walikelas-absensi-rekap", label: "Rekap Absen Kelas", path: "/walikelas/absensi/rekap" },
                 ]
             },
-            { id: "walikelas-siswa", label: "Data Siswa Kelas", icon: Users, path: "/walikelas/siswa" },
-            { id: "walikelas-rapor", label: "Rapor & Nilai", icon: BookOpen, path: "/walikelas/rapor" },
         ]
     },
-    ...TEACHER_NAV_GROUPS.filter(g => g.group !== "Utama") // Inherit teacher menus since they also teach
+    ...INHERITED_WALIKELAS_TEACHER_GROUPS // Inherit teacher menus since they also teach
 ];
 
-export const getNavGroups = (portal?: string): NavGroup[] => {
+const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities): NavGroup[] => {
+    const hasTeachingSchedule = capabilities?.hasTeachingSchedule;
+    const hasHomeroomClass = capabilities?.hasHomeroomClass;
+
+    return groups
+        .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => {
+                if (item.id === 'teacher-jadwal') {
+                    return hasTeachingSchedule !== false;
+                }
+
+                if (item.id === 'teacher-absensi' || item.id === 'walikelas-absensi' || item.id === 'walikelas-siswa') {
+                    return hasHomeroomClass !== false;
+                }
+
+                return true;
+            }),
+        }))
+        .filter((group) => group.items.length > 0);
+};
+
+export const getNavGroups = (portal?: string, capabilities?: NavCapabilities): NavGroup[] => {
+    const applyCapabilityFilter = (groups: NavGroup[]) => filterByCapabilities(groups, capabilities);
+
     switch (portal) {
         case 'walikelas':
-            return WALIKELAS_NAV_GROUPS;
+            return applyCapabilityFilter(WALIKELAS_NAV_GROUPS);
         case 'guru-mapel':
-            return TEACHER_NAV_GROUPS;
+            return applyCapabilityFilter(TEACHER_NAV_GROUPS);
         case 'admin':
         default:
             return ADMIN_NAV_GROUPS;

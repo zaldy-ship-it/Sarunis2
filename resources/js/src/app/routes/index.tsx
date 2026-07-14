@@ -14,6 +14,8 @@ import { Kelas } from '../pages/akademik/Kelas';
 import { Kalender } from '../pages/akademik/Kalender';
 import { GuruMapelJadwal } from '../pages/guru-mapel/GuruMapelJadwal';
 import { WaliKelasAbsensi } from '../pages/walikelas/WaliKelasAbsensi';
+import { ClassAttendanceRecap } from '../pages/walikelas/ClassAttendanceRecap';
+import { ClassStudents } from '../pages/walikelas/ClassStudents';
 import { AdminRecapExport } from '../pages/absensi/AdminRecapExport';
 import { Pengumuman } from '../pages/pengumuman/Pengumuman';
 import { Toaster } from 'sonner';
@@ -95,19 +97,19 @@ const router = createBrowserRouter([
             { path: '/guru-mapel/dashboard', element: <Placeholder title="Dashboard Guru" /> },
             { path: '/guru-mapel/jadwal', element: <GuruMapelJadwal /> },
             { path: '/guru-mapel/kalender', element: <Placeholder title="Kalender Akademik" /> },
+            { path: '/guru-mapel/absensi/data-kelas', element: <ClassStudents pageTitle="Data Kelas" pageDescription="Lihat seluruh siswa pada kelas perwalian yang diampu." /> },
             { path: '/guru-mapel/absensi/input', element: <WaliKelasAbsensi pageTitle="Absensi Kelas" pageDescription="Pilih pertemuan kelas perwalian, lalu isi kehadiran harian siswa." /> },
-            { path: '/guru-mapel/absensi/riwayat', element: <Placeholder title="Riwayat Absensi" /> },
-            { path: '/guru-mapel/absensi/rekap', element: <GuruMapelJadwal /> },
-            { path: '/guru-mapel/lms/nilai', element: <Placeholder title="Input Nilai" /> },
-            { path: '/guru-mapel/lms/materi', element: <Placeholder title="Upload Materi" /> },
-            { path: '/guru-mapel/pengumuman', element: <Placeholder title="Pengumuman Kelas" /> },
+            { path: '/guru-mapel/absensi/riwayat', element: <ClassAttendanceRecap mode="history" pageTitle="Riwayat Absensi Kelas" pageDescription="Lihat catatan absensi kelas perwalian berdasarkan tanggal." /> },
+            { path: '/guru-mapel/absensi/rekap', element: <ClassAttendanceRecap mode="recap" pageTitle="Rekap Absensi Kelas" pageDescription="Ringkas kehadiran siswa kelas perwalian berdasarkan periode." /> },
             { path: '/guru-mapel/profil', element: <Placeholder title="Profil Saya" /> },
  
             // --- WALI KELAS ROUTES ---
             { path: '/walikelas/dashboard', element: <Placeholder title="Dashboard Wali Kelas" /> },
+            { path: '/walikelas/absensi/data-kelas', element: <ClassStudents pageTitle="Data Kelas Perwalian" pageDescription="Lihat seluruh siswa pada kelas yang menjadi tanggung jawab wali kelas." /> },
             { path: '/walikelas/absensi/input', element: <WaliKelasAbsensi /> },
-            { path: '/walikelas/absensi/rekap', element: <Placeholder title="Rekap Absensi Harian Kelas" /> },
-            { path: '/walikelas/siswa', element: <Placeholder title="Data Siswa Kelas" /> },
+            { path: '/walikelas/absensi/riwayat', element: <ClassAttendanceRecap mode="history" /> },
+            { path: '/walikelas/absensi/rekap', element: <ClassAttendanceRecap mode="recap" /> },
+            { path: '/walikelas/siswa', element: <ClassStudents pageTitle="Data Siswa Kelas" pageDescription="Lihat seluruh siswa pada kelas yang menjadi tanggung jawab wali kelas." /> },
             { path: '/walikelas/rapor', element: <Placeholder title="Rapor & Nilai Kelas" /> },
         ],
     },

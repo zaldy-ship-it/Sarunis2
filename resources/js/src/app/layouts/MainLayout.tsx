@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { School, ChevronLeft, ChevronRight, LogOut, Menu, Search, Bell, ChevronDown, ChevronUp, User, Settings, Circle } from 'lucide-react';
 import { cn } from '../components/ui/utils'; // Assuming this utility is present
 import { useAuth } from '../context/AuthContext';
-import { getNavGroups, ROLE_LABELS } from '../utils/constants';
+import api from '../services/api';
+import { getNavGroups, ROLE_LABELS, NavCapabilities } from '../utils/constants';
 
 const AV_COLORS = ["bg-blue-600","bg-violet-600","bg-emerald-600","bg-amber-600","bg-rose-600","bg-cyan-600","bg-orange-600"];
 function Av({ name, sz = "md", className }: { name: string; sz?: "xs"|"sm"|"md"|"lg"|"xl"; className?: string }) {
@@ -32,18 +33,67 @@ export const MainLayout = () => {
     const [coll, setColl] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+    const [navCapabilities, setNavCapabilities] = useState<NavCapabilities>({
+        hasTeachingSchedule: null,
+        hasHomeroomClass: null,
+    });
 
     const toggleMenu = (id: string) => {
         if (coll) setColl(false); // expand sidebar if trying to open a menu
         setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
+    useEffect(() => {
+        let active = true;
+        if (!user) {
+            setNavCapabilities({ hasTeachingSchedule: null, hasHomeroomClass: null });
+            return;
+        }
+
+        const shouldResolveTeacherMenus = user.activePortal === 'guru-mapel' || user.activePortal === 'walikelas';
+
+        if (!shouldResolveTeacherMenus) {
+            setNavCapabilities({ hasTeachingSchedule: null, hasHomeroomClass: null });
+            return;
+        }
+
+        setNavCapabilities({ hasTeachingSchedule: null, hasHomeroomClass: null });
+
+        const resolveCapabilities = async () => {
+            const [scheduleResult, homeroomResult] = await Promise.allSettled([
+                api.get('/guru-mapel/jadwal-ajar'),
+                api.get('/walikelas/kelas'),
+            ]);
+
+            if (!active) return;
+
+            const schedules = scheduleResult.status === 'fulfilled'
+                ? (scheduleResult.value.data.data || [])
+                : [];
+
+            const homeroomClasses = homeroomResult.status === 'fulfilled'
+                ? (homeroomResult.value.data.data || [])
+                : [];
+
+            setNavCapabilities({
+                hasTeachingSchedule: Array.isArray(schedules) && schedules.length > 0,
+                hasHomeroomClass: Array.isArray(homeroomClasses) && homeroomClasses.length > 0,
+            });
+        };
+
+        resolveCapabilities();
+
+        return () => {
+            active = false;
+        };
+    }, [user?.id, user?.activePortal]);
+
     if (!user) {
         return <div>Memuat...</div>;
     }
 
     const currentRole = user.roles[0]; // simplify to first role for now
-    const navGroups = getNavGroups(user.activePortal);
+    const navGroups = getNavGroups(user.activePortal, navCapabilities);
 
     const body = (
         <div className={cn("flex flex-col h-full bg-slate-900 transition-[width] duration-300 ease-in-out overflow-hidden", coll ? "w-16" : "w-60")}>
