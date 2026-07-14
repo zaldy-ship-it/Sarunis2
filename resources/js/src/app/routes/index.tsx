@@ -13,6 +13,7 @@ import { Mapel } from '../pages/akademik/Mapel';
 import { Kelas } from '../pages/akademik/Kelas';
 import { Kalender } from '../pages/akademik/Kalender';
 import { GuruMapelJadwal } from '../pages/guru-mapel/GuruMapelJadwal';
+import { GuruMapelAbsensi } from '../pages/guru-mapel/GuruMapelAbsensi';
 import { WaliKelasAbsensi } from '../pages/walikelas/WaliKelasAbsensi';
 import { AdminRecapExport } from '../pages/absensi/AdminRecapExport';
 import { Pengumuman } from '../pages/pengumuman/Pengumuman';
@@ -94,7 +95,7 @@ const router = createBrowserRouter([
             { path: '/guru-mapel/dashboard', element: <Placeholder title="Dashboard Guru" /> },
             { path: '/guru-mapel/jadwal', element: <GuruMapelJadwal /> },
             { path: '/guru-mapel/kalender', element: <Placeholder title="Kalender Akademik" /> },
-            { path: '/guru-mapel/absensi/input', element: <GuruMapelJadwal /> },
+            { path: '/guru-mapel/absensi/input', element: <GuruMapelAbsensi /> },
             { path: '/guru-mapel/absensi/riwayat', element: <Placeholder title="Riwayat Absensi" /> },
             { path: '/guru-mapel/absensi/rekap', element: <GuruMapelJadwal /> },
             { path: '/guru-mapel/lms/nilai', element: <Placeholder title="Input Nilai" /> },

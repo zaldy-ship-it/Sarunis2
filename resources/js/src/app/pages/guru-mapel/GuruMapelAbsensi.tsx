@@ -37,11 +37,20 @@ interface Meeting {
     day_name: string;
 }
 
+type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpha';
+
 interface AttendanceRecord {
     student_id: number;
-    status: 'H' | 'S' | 'I' | 'A' | 'T';
+    status: AttendanceStatus;
     notes: string;
 }
+
+const statusOptions: Array<{ value: AttendanceStatus; label: string; className: string }> = [
+    { value: 'hadir', label: 'Hadir', className: 'text-blue-600 focus:ring-blue-500/20' },
+    { value: 'sakit', label: 'Sakit', className: 'text-amber-500 focus:ring-amber-500/20' },
+    { value: 'izin', label: 'Izin', className: 'text-emerald-500 focus:ring-emerald-500/20' },
+    { value: 'alpha', label: 'Alpha', className: 'text-rose-500 focus:ring-rose-500/20' },
+];
 
 const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
@@ -147,7 +156,7 @@ export const GuruMapelAbsensi = () => {
             studentsList.forEach((s: Student) => {
                 initialAttendances[s.id] = existingMap[s.id] || {
                     student_id: s.id,
-                    status: 'H',
+                    status: 'hadir',
                     notes: ''
                 };
             });
@@ -178,7 +187,7 @@ export const GuruMapelAbsensi = () => {
         }
     };
 
-    const handleStatusChange = (studentId: number, status: 'H' | 'S' | 'I' | 'A' | 'T') => {
+    const handleStatusChange = (studentId: number, status: AttendanceStatus) => {
         setAttendances(prev => ({
             ...prev,
             [studentId]: {
@@ -298,68 +307,32 @@ export const GuruMapelAbsensi = () => {
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         <th className="py-3 px-6">Nama Siswa</th>
-                                        <th className="py-3 px-4 text-center">Hadir</th>
-                                        <th className="py-3 px-4 text-center">Sakit</th>
-                                        <th className="py-3 px-4 text-center">Izin</th>
-                                        <th className="py-3 px-4 text-center">Alpha</th>
-                                        <th className="py-3 px-4 text-center">Terlambat</th>
+                                        {statusOptions.map((status) => (
+                                            <th key={status.value} className="py-3 px-4 text-center">{status.label}</th>
+                                        ))}
                                         <th className="py-3 px-6">Catatan</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                                     {students.map((student) => {
-                                        const record = attendances[student.id] || { status: 'H', notes: '' };
+                                        const record = attendances[student.id] || { student_id: student.id, status: 'hadir' as AttendanceStatus, notes: '' };
                                         return (
                                             <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="py-3.5 px-6 font-medium text-slate-950">
                                                     {student.name}
                                                     <span className="block text-xs font-normal text-slate-400 mt-0.5">NIK: {student.nik}</span>
                                                 </td>
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <input
-                                                        type="radio"
-                                                        name={`status-${student.id}`}
-                                                        checked={record.status === 'H'}
-                                                        onChange={() => handleStatusChange(student.id, 'H')}
-                                                        className="w-4 h-4 text-blue-600 focus:ring-blue-500/20 border-slate-300"
-                                                    />
-                                                </td>
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <input
-                                                        type="radio"
-                                                        name={`status-${student.id}`}
-                                                        checked={record.status === 'S'}
-                                                        onChange={() => handleStatusChange(student.id, 'S')}
-                                                        className="w-4 h-4 text-amber-500 focus:ring-amber-500/20 border-slate-300"
-                                                    />
-                                                </td>
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <input
-                                                        type="radio"
-                                                        name={`status-${student.id}`}
-                                                        checked={record.status === 'I'}
-                                                        onChange={() => handleStatusChange(student.id, 'I')}
-                                                        className="w-4 h-4 text-emerald-500 focus:ring-emerald-500/20 border-slate-300"
-                                                    />
-                                                </td>
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <input
-                                                        type="radio"
-                                                        name={`status-${student.id}`}
-                                                        checked={record.status === 'A'}
-                                                        onChange={() => handleStatusChange(student.id, 'A')}
-                                                        className="w-4 h-4 text-rose-500 focus:ring-rose-500/20 border-slate-300"
-                                                    />
-                                                </td>
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <input
-                                                        type="radio"
-                                                        name={`status-${student.id}`}
-                                                        checked={record.status === 'T'}
-                                                        onChange={() => handleStatusChange(student.id, 'T')}
-                                                        className="w-4 h-4 text-indigo-500 focus:ring-indigo-500/20 border-slate-300"
-                                                    />
-                                                </td>
+                                                {statusOptions.map((status) => (
+                                                    <td key={status.value} className="py-3.5 px-4 text-center">
+                                                        <input
+                                                            type="radio"
+                                                            name={`status-${student.id}`}
+                                                            checked={record.status === status.value}
+                                                            onChange={() => handleStatusChange(student.id, status.value)}
+                                                            className={`w-4 h-4 border-slate-300 ${status.className}`}
+                                                        />
+                                                    </td>
+                                                ))}
                                                 <td className="py-3.5 px-6">
                                                     <input
                                                         type="text"
