@@ -9,6 +9,8 @@ use App\Models\StudentNote;
 use App\Models\SubjectAttendance;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\User;
+use App\Enums\UserRole;
 use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
@@ -21,11 +23,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CsvImportExportService
 {
+    protected const IMPORT_DEFAULT_PASSWORD = 'ipyakin2026';
+
     public function __construct(
         protected StudentService $studentService,
         protected TeacherService $teacherService,
         protected TeachingAssignmentService $teachingAssignmentService,
         protected AppSettingService $appSettingService,
+        protected UserRoleService $userRoleService,
     ) {
     }
 
@@ -148,12 +153,14 @@ class CsvImportExportService
             $validator->validate();
 
             if ($student === null) {
-                $this->studentService->create($payload);
+                $student = $this->studentService->create($payload);
+                $this->ensureImportedStudentAccounts($student);
 
                 return 'created';
             }
 
-            $this->studentService->update($student, $payload);
+            $student = $this->studentService->update($student, $payload);
+            $this->ensureImportedStudentAccounts($student);
 
             return 'updated';
         });
@@ -263,12 +270,14 @@ class CsvImportExportService
             $validator->validate();
 
             if ($teacher === null) {
-                $this->teacherService->create($payload);
+                $teacher = $this->teacherService->create($payload);
+                $this->ensureImportedTeacherAccount($teacher);
 
                 return 'created';
             }
 
-            $this->teacherService->update($teacher, $payload);
+            $teacher = $this->teacherService->update($teacher, $payload);
+            $this->ensureImportedTeacherAccount($teacher);
 
             return 'updated';
         });
@@ -481,6 +490,97 @@ class CsvImportExportService
         });
     }
 
+    protected function ensureImportedTeacherAccount(Teacher $teacher): void
+    {
+        $teacher->loadMissing('user');
+        $user = $teacher->user;
+
+        if ($user === null) {
+            $user = User::query()->create([
+                'name' => $teacher->name,
+                'email' => $this->uniqueImportedEmail('guru', $teacher->nip ?? $teacher->nik ?? $teacher->name ?? $teacher->id),
+                'password' => self::IMPORT_DEFAULT_PASSWORD,
+                'roles' => [UserRole::GURU_MAPEL->value],
+            ]);
+
+            $teacher->forceFill(['user_id' => $user->id])->save();
+            $teacher->setRelation('user', $user);
+        } else {
+            $user->forceFill([
+                'name' => $user->name ?: $teacher->name,
+                'password' => self::IMPORT_DEFAULT_PASSWORD,
+            ])->save();
+
+            $this->userRoleService->ensureRoles($user, [UserRole::GURU_MAPEL]);
+        }
+    }
+
+    protected function ensureImportedStudentAccounts(Student $student): void
+    {
+        $student->loadMissing(['user', 'parentUser', 'detailSiswa']);
+        $user = $student->user;
+
+        if ($user === null) {
+            $user = User::query()->create([
+                'name' => $student->name,
+                'email' => $this->uniqueImportedEmail('siswa', $student->nisn ?? $student->nik ?? $student->name ?? $student->id),
+                'password' => self::IMPORT_DEFAULT_PASSWORD,
+                'roles' => [UserRole::SISWA->value],
+            ]);
+
+            $student->forceFill(['user_id' => $user->id])->save();
+            $student->setRelation('user', $user);
+        } else {
+            $user->forceFill([
+                'name' => $user->name ?: $student->name,
+                'password' => self::IMPORT_DEFAULT_PASSWORD,
+            ])->save();
+
+            $this->userRoleService->ensureRoles($user, [UserRole::SISWA]);
+        }
+
+        $parentUser = $student->parentUser;
+        if ($parentUser !== null) {
+            $parentUser->forceFill([
+                'password' => self::IMPORT_DEFAULT_PASSWORD,
+            ])->save();
+
+            $this->userRoleService->ensureRoles($parentUser, [UserRole::ORANG_TUA]);
+        }
+    }
+
+    protected function uniqueImportedEmail(string $prefix, mixed $identifier): string
+    {
+        $local = str($prefix.'.'.(string) $identifier)
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/[^a-z0-9]+/', '.')
+            ->replaceMatches('/\.+/', '.')
+            ->trim('.')
+            ->toString();
+
+        if ($local === '' || $local === $prefix) {
+            $local = $prefix.'.'.uniqid();
+        }
+
+        $domain = $this->generatedImportEmailDomain();
+        $email = $local.'@'.$domain;
+        $counter = 2;
+
+        while (User::query()->where('email', $email)->exists()) {
+            $email = $local.'.'.$counter.'@'.$domain;
+            $counter++;
+        }
+
+        return $email;
+    }
+
+    protected function generatedImportEmailDomain(): string
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        return filled($host) ? (string) $host : 'sarunis.local';
+    }
     public function template(string $type): StreamedResponse
     {
         [$filename, $headers] = match ($type) {
@@ -502,7 +602,6 @@ class CsvImportExportService
 
         return response()->streamDownload(function () use ($headers): void {
             $handle = fopen('php://output', 'w');
-            fwrite($handle, "\xEF\xBB\xBFsep=,\n");
             fputcsv($handle, $headers);
             fclose($handle);
         }, $filename, [
@@ -555,7 +654,8 @@ class CsvImportExportService
         $header = fgetcsv($handle);
         abort_if($header === false, 422, 'File import harus memiliki header CSV.');
 
-        if (count($header) === 1 && str_starts_with(strtolower($header[0] ?? ''), 'sep=')) {
+        $firstHeader = str_replace("\xEF\xBB\xBF", '', (string) ($header[0] ?? ''));
+        if (str_starts_with(strtolower(trim($firstHeader)), 'sep=')) {
             $header = fgetcsv($handle);
             abort_if($header === false, 422, 'File import harus memiliki header CSV.');
         }

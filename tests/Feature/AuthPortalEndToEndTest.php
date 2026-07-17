@@ -12,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -215,6 +216,27 @@ class AuthPortalEndToEndTest extends TestCase
         $this->assertStringContainsString('nama_mapel', $jadwal);
         $this->assertStringContainsString('jam_mulai', $jadwal);
     }
+    public function test_admin_can_import_guru_csv_with_excel_sep_preamble(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $csv = implode("\n", [
+            'sep=,',
+            'nip,nik,nama,tempat_lahir,tanggal_lahir,jenis_kelamin,agama,status_kepegawaian,jabatan,tanggal_masuk,pendidikan_terakhir,jurusan,universitas,no_hp,alamat',
+            '991123,330000009912,Guru Sep,Bandung,1988-05-01,L,Islam,GTY,Guru,2020-01-01,S1,Pendidikan,Universitas Contoh,081234567892,Jl Import Sep',
+        ]);
+
+        $this->postJson('/api/v1/admin/import/guru', [
+            'file' => UploadedFile::fake()->createWithContent('guru-sep.csv', $csv),
+        ])->assertOk()
+            ->assertJsonPath('created', 1)
+            ->assertJsonPath('failed', 0);
+
+        $this->assertDatabaseHas('teachers', [
+            'nip' => '991123',
+            'name' => 'Guru Sep',
+        ]);
+    }
     public function test_admin_can_import_guru_with_indonesian_csv_headers(): void
     {
         $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
@@ -237,6 +259,11 @@ class AuthPortalEndToEndTest extends TestCase
             'gender' => 'L',
             'phone' => '081234567899',
         ]);
+
+        $teacher = \App\Models\Teacher::query()->where('nip', '991122')->with('user')->firstOrFail();
+        $this->assertNotNull($teacher->user);
+        $this->assertContains('guru_mapel', $teacher->user->roles);
+        $this->assertTrue(Hash::check('ipyakin2026', $teacher->user->password));
     }
 
     public function test_admin_can_import_siswa_with_indonesian_csv_headers(): void
@@ -264,6 +291,14 @@ class AuthPortalEndToEndTest extends TestCase
             'gender' => 'L',
             'school_class_id' => $classId,
         ]);
+
+        $student = Student::query()->where('nik', '880001')->with(['user', 'parentUser'])->firstOrFail();
+        $this->assertNotNull($student->user);
+        $this->assertNotNull($student->parentUser);
+        $this->assertContains('siswa', $student->user->roles);
+        $this->assertContains('orang_tua', $student->parentUser->roles);
+        $this->assertTrue(Hash::check('ipyakin2026', $student->user->password));
+        $this->assertTrue(Hash::check('ipyakin2026', $student->parentUser->password));
     }
     public function test_admin_can_import_jadwal_with_common_csv_headers(): void
     {
