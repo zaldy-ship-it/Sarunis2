@@ -14,7 +14,6 @@ use Illuminate\Support\Collection;
 class ScheduleOptimizerService
 {
     /**
-     * Deteksi konflik jadwal guru
      */
     public function detectTeacherConflicts(string $academicYear): array
     {

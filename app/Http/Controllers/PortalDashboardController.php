@@ -2549,23 +2549,28 @@ class PortalDashboardController extends Controller
      */
     protected function getAnnouncementsForUser(User $user): \Illuminate\Support\Collection
     {
-        $announcements = \App\Models\Announcement::query()
-            ->with('creator')
-            ->latest()
-            ->get();
+        try {
+            $announcements = \App\Models\Announcement::query()
+                ->with('creator')
+                ->latest()
+                ->get();
 
-        return $announcements->filter(function (\App\Models\Announcement $announcement) use ($user) {
-            $target = $announcement->target_roles;
-            if (empty($target)) {
-                return true;
-            }
-            foreach ($user->roles ?? [] as $role) {
-                if (in_array($role, $target, true)) {
+            return $announcements->filter(function (\App\Models\Announcement $announcement) use ($user) {
+                $target = $announcement->target_roles;
+                if (empty($target)) {
                     return true;
                 }
-            }
-            return false;
-        })->values();
+                foreach ($user->roles ?? [] as $role) {
+                    if (in_array($role, $target, true)) {
+                        return true;
+                    }
+                }
+                return false;
+            })->values();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Could not load announcements: ' . $e->getMessage());
+            return collect();
+        }
     }
 
     protected function baseDashboardData(User $user, string $portalKey, array $payload, array $data): array

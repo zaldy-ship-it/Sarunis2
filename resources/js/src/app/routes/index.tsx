@@ -1,12 +1,13 @@
 import React from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { AuthProvider } from '../context/AuthContext';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { MainLayout } from '../layouts/MainLayout';
 import { Login } from '../pages/auth/Login';
 import { AdminDashboard } from '../pages/dashboard/AdminDashboard';
 import { TeacherDashboard } from '../pages/dashboard/TeacherDashboard';
 import { HomeroomDashboard } from '../pages/dashboard/HomeroomDashboard';
+import { UserProfile } from '../pages/profile/UserProfile';
 import { JadwalKelas } from '../pages/akademik/JadwalKelas';
 import { PengaturanAkademik } from '../pages/akademik/PengaturanAkademik';
 import { Siswa } from '../pages/master/Siswa';
@@ -22,6 +23,7 @@ import { ClassStudents } from '../pages/walikelas/ClassStudents';
 import { StudentClassAttendance, StudentNotes, StudentSchedule, StudentSubjectAttendance } from '../pages/siswa/StudentPages';
 import { AdminRecapExport } from '../pages/absensi/AdminRecapExport';
 import { Pengumuman } from '../pages/pengumuman/Pengumuman';
+import { DataReset } from '../pages/admin/DataReset';
 import { Toaster } from 'sonner';
 
 // Placeholder component for unimplemented pages
@@ -31,6 +33,23 @@ const Placeholder = ({ title }: { title: string }) => (
         <p className="text-slate-500 mt-2">Halaman ini sedang dalam pengembangan.</p>
     </div>
 );
+
+// Redirect to the correct dashboard based on user's active portal
+const DashboardRedirect = () => {
+    const { user } = useAuth();
+    const portal = user?.activePortal;
+
+    const dashboardMap: Record<string, string> = {
+        'admin': '/admin/dashboard',
+        'guru-mapel': '/guru-mapel/dashboard',
+        'walikelas': '/walikelas/dashboard',
+        'siswa': '/siswa/dashboard',
+        'orang-tua': '/orang-tua/dashboard',
+    };
+
+    const target = (portal && dashboardMap[portal]) || '/admin/dashboard';
+    return <Navigate to={target} replace />;
+};
 
 const router = createBrowserRouter([
     {
@@ -45,7 +64,7 @@ const router = createBrowserRouter([
     {
         element: <MainLayout />,
         children: [
-            { path: '/', element: <AdminDashboard /> },
+            { path: '/', element: <DashboardRedirect /> },
             { path: '/admin/dashboard', element: <AdminDashboard /> },
             
             // Akademik
@@ -93,21 +112,19 @@ const router = createBrowserRouter([
 
             // Pengaturan Admin
             { path: '/pengaturan/profil', element: <Placeholder title="Profil Sekolah" /> },
-            { path: '/pengaturan/konfigurasi', element: <Placeholder title="Konfigurasi Sistem" /> },
+            { path: '/pengaturan/konfigurasi', element: <Placeholder title="Konfigurasi" /> },
             { path: '/pengaturan/backup', element: <Placeholder title="Backup & Restore" /> },
             { path: '/pengaturan/audit', element: <Placeholder title="Audit Log" /> },
+            { path: '/pengaturan/data-reset', element: <DataReset /> },
+            { path: '/admin/profil', element: <UserProfile /> },
 
             // --- GURU MAPEL ROUTES ---
             { path: '/guru-mapel/dashboard', element: <TeacherDashboard /> },
             { path: '/guru-mapel/jadwal', element: <GuruMapelJadwal /> },
             { path: '/guru-mapel/kalender', element: <Placeholder title="Kalender Akademik" /> },
-            { path: '/guru-mapel/absensi/data-kelas', element: <ClassStudents pageTitle="Data Kelas" pageDescription="Lihat seluruh siswa pada kelas perwalian yang diampu." /> },
-            { path: '/guru-mapel/absensi/input', element: <WaliKelasAbsensi pageTitle="Absensi Kelas" pageDescription="Pilih pertemuan kelas perwalian, lalu isi kehadiran harian siswa." /> },
-            { path: '/guru-mapel/absensi/riwayat', element: <ClassAttendanceRecap mode="history" pageTitle="Riwayat Absensi Kelas" pageDescription="Lihat catatan absensi kelas perwalian berdasarkan tanggal." /> },
-            { path: '/guru-mapel/absensi/rekap', element: <ClassAttendanceRecap mode="recap" pageTitle="Rekap Absensi Kelas" pageDescription="Ringkas kehadiran siswa kelas perwalian berdasarkan periode." /> },
             { path: '/guru-mapel/absensi/riwayat-mapel', element: <SubjectAttendanceRecap mode="history" pageTitle="Riwayat Absensi Mapel" pageDescription="Lihat catatan absensi per mata pelajaran yang diajar." /> },
             { path: '/guru-mapel/absensi/rekap-mapel', element: <SubjectAttendanceRecap mode="recap" pageTitle="Rekap Absensi Mapel" pageDescription="Ringkas kehadiran siswa untuk mata pelajaran yang diajar." /> },
-            { path: '/guru-mapel/profil', element: <Placeholder title="Profil Saya" /> },
+            { path: '/guru-mapel/profil', element: <UserProfile /> },
  
             // --- WALI KELAS ROUTES ---
             { path: '/walikelas/dashboard', element: <HomeroomDashboard /> },
@@ -124,12 +141,14 @@ const router = createBrowserRouter([
             { path: '/siswa/absensi-mapel', element: <StudentSubjectAttendance /> },
             { path: '/siswa/absensi-kelas', element: <StudentClassAttendance /> },
             { path: '/siswa/catatan', element: <StudentNotes /> },
+            { path: '/siswa/profil', element: <UserProfile /> },
 
             // --- ORANG TUA ROUTES ---
             { path: '/orang-tua/dashboard', element: <StudentSchedule portal="orang-tua" /> },
             { path: '/orang-tua/absensi-mapel', element: <StudentSubjectAttendance portal="orang-tua" /> },
             { path: '/orang-tua/absensi-kelas', element: <StudentClassAttendance portal="orang-tua" /> },
             { path: '/orang-tua/catatan', element: <StudentNotes portal="orang-tua" /> },
+            { path: '/orang-tua/profil', element: <UserProfile /> },
         ],
     },
 ]);

@@ -116,10 +116,12 @@ export const ADMIN_NAV_GROUPS: NavGroup[] = [
             {
                 id: "pengaturan", label: "Pengaturan", icon: Settings,
                 subItems: [
+                    { id: "settings-profil-saya", label: "Profil Saya", path: "/admin/profil" },
                     { id: "settings-profil", label: "Profil Sekolah", path: "/pengaturan/profil" },
                     { id: "settings-konfigurasi", label: "Konfigurasi Sistem", path: "/pengaturan/konfigurasi" },
                     { id: "settings-backup", label: "Backup & Restore", path: "/pengaturan/backup" },
                     { id: "settings-audit", label: "Audit Log", path: "/pengaturan/audit" },
+                    { id: "settings-data-reset", label: "Reset Data", path: "/pengaturan/data-reset" },
                 ]
             },
         ]
@@ -146,10 +148,6 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
             {
                 id: "teacher-absensi", label: "Absensi", icon: CheckSquare,
                 subItems: [
-                    { id: "teacher-absensi-data-kelas", label: "Lihat Data Kelas", path: "/guru-mapel/absensi/data-kelas" },
-                    { id: "teacher-absensi-input", label: "Input Absen Kelas", path: "/guru-mapel/absensi/input" },
-                    { id: "teacher-absensi-riwayat", label: "Riwayat Absensi Kelas", path: "/guru-mapel/absensi/riwayat" },
-                    { id: "teacher-absensi-rekap", label: "Rekap Absensi Kelas", path: "/guru-mapel/absensi/rekap" },
                     { id: "teacher-absensi-riwayat-mapel", label: "Riwayat Absensi Mapel", path: "/guru-mapel/absensi/riwayat-mapel" },
                     { id: "teacher-absensi-rekap-mapel", label: "Rekap Absensi Mapel", path: "/guru-mapel/absensi/rekap-mapel" },
                 ]
@@ -204,6 +202,7 @@ export const STUDENT_NAV_GROUPS: NavGroup[] = [
             { id: "student-subject-attendance", label: "Absensi Mapel", icon: BookOpen, path: "/siswa/absensi-mapel" },
             { id: "student-class-attendance", label: "Absensi Kelas", icon: CheckSquare, path: "/siswa/absensi-kelas" },
             { id: "student-notes", label: "Catatan", icon: FileText, path: "/siswa/catatan" },
+            { id: "student-profil", label: "Profil Saya", icon: UserCheck, path: "/siswa/profil" },
         ]
     }
 ];
@@ -216,6 +215,7 @@ export const PARENT_NAV_GROUPS: NavGroup[] = [
             { id: "parent-subject-attendance", label: "Absensi Mapel", icon: BookOpen, path: "/orang-tua/absensi-mapel" },
             { id: "parent-class-attendance", label: "Absensi Kelas", icon: CheckSquare, path: "/orang-tua/absensi-kelas" },
             { id: "parent-notes", label: "Catatan Anak", icon: FileText, path: "/orang-tua/catatan" },
+            { id: "parent-profil", label: "Profil Saya", icon: UserCheck, path: "/orang-tua/profil" },
         ]
     }
 ];
@@ -223,12 +223,6 @@ export const PARENT_NAV_GROUPS: NavGroup[] = [
 const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities): NavGroup[] => {
     const hasTeachingSchedule = capabilities?.hasTeachingSchedule;
     const hasHomeroomClass = capabilities?.hasHomeroomClass;
-    const homeroomOnlySubItems = new Set([
-        'teacher-absensi-data-kelas',
-        'teacher-absensi-input',
-        'teacher-absensi-riwayat',
-        'teacher-absensi-rekap',
-    ]);
     const teachingOnlySubItems = new Set([
         'teacher-absensi-riwayat-mapel',
         'teacher-absensi-rekap-mapel',
@@ -238,10 +232,6 @@ const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities
         if (!subItems) return subItems;
 
         return subItems.filter((item) => {
-            if (homeroomOnlySubItems.has(item.id)) {
-                return hasHomeroomClass !== false;
-            }
-
             if (teachingOnlySubItems.has(item.id)) {
                 return hasTeachingSchedule !== false;
             }
@@ -262,7 +252,7 @@ const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities
                 }
 
                 if (item.id === 'teacher-absensi') {
-                    return (hasTeachingSchedule !== false || hasHomeroomClass !== false) && (item.subItems?.length || 0) > 0;
+                    return (hasTeachingSchedule !== false) && (item.subItems?.length || 0) > 0;
                 }
 
                 if (item.id === 'walikelas-absensi' || item.id === 'walikelas-siswa') {

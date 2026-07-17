@@ -55,6 +55,7 @@ use App\Http\Controllers\Admin\AcademicCalendarController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\ClassPlottingController;
+use App\Http\Controllers\Admin\DataResetController;
 use App\Http\Controllers\Admin\ImportExportController;
 use App\Http\Controllers\Admin\SchoolClassController;
 use App\Http\Controllers\Admin\SemesterLockController;
@@ -69,13 +70,14 @@ use App\Http\Controllers\AuthRecoveryController;
 use App\Http\Controllers\ClassAttendanceController;
 use App\Http\Controllers\HomeroomPortalController;
 use App\Http\Controllers\ParentPortalController;
-use App\Http\Controllers\PortalAuthPageController;
 use App\Http\Controllers\PortalDashboardController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\StudentViolationController;
 use App\Http\Controllers\SubjectAttendanceController;
 use App\Http\Controllers\TeacherPortalController;
+
+use App\Http\Controllers\ProfileController;
 
 Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
@@ -84,6 +86,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+        Route::get('/profile', [ProfileController::class, 'show']);
+        Route::put('/profile', [ProfileController::class, 'update']);
         Route::get('kelas/{schoolClass}/pertemuan', [SchoolClassController::class, 'meetings']);
     });
 
@@ -130,6 +134,9 @@ Route::prefix('v1')->group(function () {
         Route::get('siswa/tidak-ada-kelas', [StudentController::class, 'unassigned']);
         Route::get('/pengumuman', [AnnouncementController::class, 'page']);
         Route::apiResource('announcements', AnnouncementController::class)->parameters(['announcements' => 'announcement'])->except(['create', 'edit']);
+
+        Route::get('/data-reset', [DataResetController::class, 'index']);
+        Route::post('/data-reset', [DataResetController::class, 'execute']);
 
         Route::prefix('schedule')->group(function () {
             Route::get('/form-data', [ScheduleController::class, 'getFormData']);
