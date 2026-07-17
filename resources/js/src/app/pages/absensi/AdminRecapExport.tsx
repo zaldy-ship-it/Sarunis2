@@ -10,6 +10,7 @@ import api from '../../services/api';
 type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpha';
 type RecapType = 'kelas' | 'mapel';
 type ViewMode = 'ringkasan' | 'pertemuan';
+type NotesFilter = 'all' | 'has-notes' | 'no-notes';
 
 interface SchoolClass {
     id: number;
@@ -96,6 +97,7 @@ export const AdminRecapExport = () => {
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedSubjectId, setSelectedSubjectId] = useState('');
     const [selectedStudentId, setSelectedStudentId] = useState('');
+    const [notesFilter, setNotesFilter] = useState<NotesFilter>('all');
 
     // Options dropdowns
     const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -171,36 +173,56 @@ export const AdminRecapExport = () => {
         setSelectedClassId('');
         setSelectedSubjectId('');
         setSelectedStudentId('');
+        setNotesFilter('all');
         setDateFrom(monthStartString());
         setDateTo(todayString());
         setQuery('');
     };
 
+    const applyNotesFilter = <T extends { notes?: string | null }>(records: T[]) => {
+        if (notesFilter === 'all') {
+            return records;
+        }
+
+        const hasNotes = (note?: string | null) => Boolean((note || '').trim());
+
+        return records.filter((record) => {
+            const shouldHaveNotes = notesFilter === 'has-notes';
+            return shouldHaveNotes ? hasNotes(record.notes) : !hasNotes(record.notes);
+        });
+    };
+
     // Filtered records by search query
     const filteredClassRecords = useMemo(() => {
         const keyword = query.trim().toLowerCase();
-        if (!keyword) return classRecords;
+        const baseRecords = applyNotesFilter(classRecords);
 
-        return classRecords.filter(r => 
+        if (!keyword) return baseRecords;
+
+        return baseRecords.filter(r => 
             (r.student?.name || '').toLowerCase().includes(keyword) ||
             (r.student?.nik || '').toLowerCase().includes(keyword) ||
             (r.school_class?.name || '').toLowerCase().includes(keyword) ||
+            (r.notes || '').toLowerCase().includes(keyword) ||
             r.status.toLowerCase().includes(keyword)
         );
-    }, [classRecords, query]);
+    }, [classRecords, query, notesFilter]);
 
     const filteredSubjectRecords = useMemo(() => {
         const keyword = query.trim().toLowerCase();
-        if (!keyword) return subjectRecords;
+        const baseRecords = applyNotesFilter(subjectRecords);
 
-        return subjectRecords.filter(r => 
+        if (!keyword) return baseRecords;
+
+        return baseRecords.filter(r => 
             (r.student?.name || '').toLowerCase().includes(keyword) ||
             (r.student?.nik || '').toLowerCase().includes(keyword) ||
             (r.teaching_assignment?.subject?.name || '').toLowerCase().includes(keyword) ||
             (r.teaching_assignment?.school_class?.name || '').toLowerCase().includes(keyword) ||
+            (r.notes || '').toLowerCase().includes(keyword) ||
             r.status.toLowerCase().includes(keyword)
         );
-    }, [subjectRecords, query]);
+    }, [subjectRecords, query, notesFilter]);
 
     // Cumulative Summaries grouping
     const classRecapRows = useMemo(() => {
@@ -405,6 +427,15 @@ export const AdminRecapExport = () => {
                         </label>
 
                         <label className="flex flex-col gap-1.5">
+                            <span className="text-xs font-semibold text-slate-500">Catatan Guru</span>
+                            <select value={notesFilter} onChange={e => setNotesFilter(e.target.value as NotesFilter)} className={fieldClass}>
+                                <option value="all">Semua Catatan</option>
+                                <option value="has-notes">Ada Catatan</option>
+                                <option value="no-notes">Tanpa Catatan</option>
+                            </select>
+                        </label>
+
+                        <label className="flex flex-col gap-1.5">
                             <span className="text-xs font-semibold text-slate-500">Dari Tanggal</span>
                             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={fieldClass} />
                         </label>
@@ -421,7 +452,7 @@ export const AdminRecapExport = () => {
                             <input
                                 value={query}
                                 onChange={e => setQuery(e.target.value)}
-                                placeholder="Cari nama, NIK, atau status..."
+                                placeholder="Cari nama, NIK, status, atau catatan guru..."
                                 className={cn(fieldClass, "w-full pl-9")}
                             />
                         </div>

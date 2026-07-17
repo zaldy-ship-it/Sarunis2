@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Concerns\ResolvesSchoolProfiles;
+use App\Services\ClassAttendanceService;
 use App\Services\SchoolClassService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class HomeroomPortalController extends Controller
 
     public function __construct(
         protected SchoolClassService $schoolClassService,
+        protected ClassAttendanceService $classAttendanceService,
     ) {
     }
 
@@ -33,7 +35,9 @@ class HomeroomPortalController extends Controller
         $teacher = $this->teacherFromRequest($request);
 
         return response()->json([
-            'data' => $this->schoolClassService->classesForHomeroomTeacher($teacher),
+            'data' => $this->schoolClassService->classesByIds(
+                $this->classAttendanceService->allowedClassIdsForTeacher($teacher),
+            ),
         ]);
     }
 
@@ -54,18 +58,18 @@ class HomeroomPortalController extends Controller
         }
 
         $teacher = $this->teacherFromRequest($request);
-        $schoolClassId = $filters['school_class_id'] ?? null;
+        $schoolClassId = array_key_exists('school_class_id', $filters) && $filters['school_class_id'] !== null
+            ? (int) $filters['school_class_id']
+            : null;
+
+        $allowedClassIds = $this->classAttendanceService->allowedClassIdsForTeacher($teacher);
 
         if ($schoolClassId !== null) {
-            $allowedClassIds = $this->schoolClassService->classesForHomeroomTeacher($teacher)
-                ->pluck('id')
-                ->all();
-
             abort_unless(in_array($schoolClassId, $allowedClassIds, true), 403, 'Anda tidak berhak mengakses siswa kelas ini.');
         }
 
         return response()->json([
-            'data' => $this->schoolClassService->students($teacher->id, $schoolClassId),
+            'data' => $this->schoolClassService->studentsForClassIds($allowedClassIds, $schoolClassId),
         ]);
     }
 }

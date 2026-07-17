@@ -329,6 +329,25 @@ class AuthPortalEndToEndTest extends TestCase
             ->assertJsonCount(3, 'data');
     }
 
+    public function test_walikelas_student_endpoint_allows_first_period_daily_attendance_class(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/walikelas', 'guru.mapel@sarunis.test');
+
+        $firstPeriodClass = SchoolClass::query()->where('name', 'X IPA 1')->firstOrFail();
+        $unrelatedClass = SchoolClass::query()->where('name', 'XI IPS 1')->firstOrFail();
+
+        $this->getJson('/api/v1/walikelas/kelas')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'X IPA 1'])
+            ->assertJsonFragment(['name' => 'X IPA 2']);
+
+        $this->getJson('/api/v1/walikelas/siswa?school_class_id='.$firstPeriodClass->id)
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Andi Saputra']);
+
+        $this->getJson('/api/v1/walikelas/siswa?school_class_id='.$unrelatedClass->id)
+            ->assertForbidden();
+    }
     public function test_parent_user_can_access_parent_dashboard_after_portal_login(): void
     {
         $response = $this->loginByPath('/api/v1/auth/login/orang-tua', 'orangtua@sarunis.test');

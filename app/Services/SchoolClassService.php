@@ -122,7 +122,7 @@ class SchoolClassService
     public function students(?int $homeroomTeacherId = null, ?int $schoolClassId = null): Collection
     {
         return Student::query()
-            ->with('schoolClass')
+            ->with(['schoolClass', 'detailSiswa', 'parentUser'])
             ->when(
                 $schoolClassId,
                 fn ($query, int $resolvedSchoolClassId) => $query->where('school_class_id', $resolvedSchoolClassId),
@@ -143,6 +143,44 @@ class SchoolClassService
     public function classesForHomeroomTeacher(Teacher $teacher): Collection
     {
         return $this->classes($teacher->id);
+    }
+
+    /**
+     * @param array<int, int> $classIds
+     * @return Collection<int, SchoolClass>
+     */
+    public function classesByIds(array $classIds): Collection
+    {
+        if ($classIds === []) {
+            return collect();
+        }
+
+        return SchoolClass::query()
+            ->with(['students', 'homeroomTeacher', 'subjects'])
+            ->whereIn('id', $classIds)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @param array<int, int> $classIds
+     * @return Collection<int, Student>
+     */
+    public function studentsForClassIds(array $classIds, ?int $schoolClassId = null): Collection
+    {
+        if ($classIds === []) {
+            return collect();
+        }
+
+        return Student::query()
+            ->with(['schoolClass', 'detailSiswa', 'parentUser'])
+            ->whereIn('school_class_id', $classIds)
+            ->when(
+                $schoolClassId,
+                fn ($query, int $resolvedSchoolClassId) => $query->where('school_class_id', $resolvedSchoolClassId),
+            )
+            ->orderBy('name')
+            ->get();
     }
 
     protected function syncHomeroomTeacherRole(?int $oldTeacherId, ?int $newTeacherId): void

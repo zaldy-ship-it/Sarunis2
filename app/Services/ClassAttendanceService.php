@@ -118,6 +118,8 @@ class ClassAttendanceService
         $allowedClassIds = $this->allowedClassIdsForTeacher($teacher);
 
         if (isset($filters['school_class_id'])) {
+            $filters['school_class_id'] = (int) $filters['school_class_id'];
+
             if (! in_array($filters['school_class_id'], $allowedClassIds, true)) {
                 throw new AuthorizationException('Anda tidak berhak mengakses absensi kelas ini.');
             }
@@ -330,5 +332,4 @@ class ClassAttendanceService
         return array_values(array_unique(array_merge($homeroomClassIds, $firstPeriodClassIds)));
     }
 }
-
 
