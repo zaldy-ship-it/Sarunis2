@@ -6,6 +6,7 @@ use App\Enums\AttendanceStatus;
 use App\Models\AppSetting;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\StudentNote;
 use App\Models\Subject;
 use App\Models\TeachingAssignment;
 use App\Models\User;
@@ -215,6 +216,11 @@ class AuthPortalEndToEndTest extends TestCase
         $this->assertStringContainsString('nip_guru', $jadwal);
         $this->assertStringContainsString('nama_mapel', $jadwal);
         $this->assertStringContainsString('jam_mulai', $jadwal);
+
+        $catatan = $this->get('/api/v1/admin/import/template/catatan-siswa')->assertOk()->streamedContent();
+        $this->assertStringContainsString('nik_siswa', $catatan);
+        $this->assertStringContainsString('judul', $catatan);
+        $this->assertStringContainsString('catatan', $catatan);
     }
     public function test_admin_can_import_guru_csv_with_excel_sep_preamble(): void
     {
@@ -357,6 +363,37 @@ class AuthPortalEndToEndTest extends TestCase
             'end_time' => '17:15',
             'room' => 'R-Baru',
         ]);
+    }
+    public function test_admin_can_import_student_notes_and_skip_duplicates(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $csv = implode("\n", [
+            'nik_siswa,nama_siswa,nip_guru,judul,kategori,catatan,tanggal_tindak_lanjut,tanggal_selesai',
+            '10001,Andi Saputra,198802020002,Perlu Pendampingan,akademik,Perlu latihan tambahan matematika,2026-03-25,',
+            '10001,Andi Saputra,198802020002,Perlu Pendampingan,akademik,Perlu latihan tambahan matematika,2026-03-25,',
+        ]);
+
+        $this->postJson('/api/v1/admin/import/catatan-siswa', [
+            'file' => UploadedFile::fake()->createWithContent('catatan-siswa.csv', $csv),
+        ])->assertOk()
+            ->assertJsonPath('created', 1)
+            ->assertJsonPath('updated', 0)
+            ->assertJsonPath('failed', 1);
+
+        $student = Student::query()->where('nik', '10001')->firstOrFail();
+
+        $this->assertDatabaseHas('student_notes', [
+            'student_id' => $student->id,
+            'title' => 'Perlu Pendampingan',
+            'category' => 'akademik',
+            'note' => 'Perlu latihan tambahan matematika',
+        ]);
+
+        $this->assertSame(1, StudentNote::query()
+            ->where('student_id', $student->id)
+            ->where('title', 'Perlu Pendampingan')
+            ->count());
     }
     public function test_admin_can_fetch_unassigned_students_for_class_plotting(): void
     {
@@ -551,6 +588,32 @@ class AuthPortalEndToEndTest extends TestCase
         $this->getJson('/api/v1/walikelas/rekap-absensi-kelas?school_class_id='.$schoolClass->id.'&attendance_date=2026-03-20')
             ->assertOk()
             ->assertJsonCount(3, 'data');
+    }
+
+    public function test_guru_mapel_can_export_subject_attendance_recap(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/guru-mapel', 'guru.mapel@sarunis.test');
+
+        $this->get('/api/v1/guru-mapel/absensi/export/csv?date_from=2026-03-01&date_to=2026-03-31')
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $this->get('/api/v1/guru-mapel/absensi/export/xls?date_from=2026-03-01&date_to=2026-03-31')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.ms-excel; charset=UTF-8');
+    }
+
+    public function test_walikelas_can_export_class_attendance_recap(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/walikelas', 'walikelas@sarunis.test');
+
+        $this->get('/api/v1/walikelas/absensi/export/csv?date_from=2026-03-01&date_to=2026-03-31')
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $this->get('/api/v1/walikelas/absensi/export/xls?date_from=2026-03-01&date_to=2026-03-31')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.ms-excel; charset=UTF-8');
     }
 
     public function test_walikelas_student_endpoint_allows_first_period_daily_attendance_class(): void

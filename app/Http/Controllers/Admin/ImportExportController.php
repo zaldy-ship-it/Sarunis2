@@ -32,13 +32,14 @@ class ImportExportController extends Controller
     {
         $payload = $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
-            'type' => ['nullable', Rule::in(['siswa', 'guru', 'jadwal'])],
+            'type' => ['nullable', Rule::in(['siswa', 'guru', 'jadwal', 'catatan-siswa'])],
         ]);
 
         $summary = match ($type) {
             'siswa' => $this->csvImportExportService->importStudents($payload['file']),
             'guru' => $this->csvImportExportService->importTeachers($payload['file']),
             'jadwal' => $this->csvImportExportService->importSchedules($payload['file']),
+            'catatan-siswa' => $this->csvImportExportService->importStudentNotes($payload['file']),
             default => abort(404, 'Tipe import tidak ditemukan.'),
         };
 

@@ -328,6 +328,140 @@ class CsvImportExportService
     }
 
     /**
+     * @return array{created:int,updated:int,failed:int,errors:array<int, array{row:int,messages:array<int,string>}>}
+     */
+    public function importStudentNotes(UploadedFile $file): array
+    {
+        return $this->importRows($file, function (array $row): string {
+            $row = $this->normalizeStudentNoteImportRow($row);
+
+            $student = $this->resolveStudentForNote($row);
+            $teacher = $this->resolveTeacherForNote($row);
+
+            $payload = [
+                'student_id' => $student?->id,
+                'teacher_id' => $teacher?->id,
+                'title' => $row['title'] ?? null,
+                'category' => $row['category'] ?? 'umum',
+                'note' => $row['note'] ?? null,
+                'follow_up_at' => $row['follow_up_at'] ?? null,
+                'resolved_at' => $row['resolved_at'] ?? null,
+            ];
+
+            $validator = Validator::make($payload, [
+                'student_id' => ['required', 'integer', 'exists:students,id'],
+                'teacher_id' => ['nullable', 'integer', 'exists:teachers,id'],
+                'title' => ['required', 'string', 'min:3', 'max:255'],
+                'category' => ['required', 'string', 'max:100'],
+                'note' => ['required', 'string', 'min:3', 'max:5000'],
+                'follow_up_at' => ['nullable', 'date'],
+                'resolved_at' => ['nullable', 'date'],
+            ], [
+                'student_id.required' => 'Siswa tidak ditemukan. Isi nik_siswa, nisn, atau nama_siswa yang sesuai data siswa.',
+                'title.required' => 'Judul catatan wajib diisi.',
+                'note.required' => 'Isi catatan wajib diisi.',
+            ]);
+
+            $validator->validate();
+
+            $exists = StudentNote::query()
+                ->where('student_id', $payload['student_id'])
+                ->where('title', $payload['title'])
+                ->where('category', $payload['category'])
+                ->where('note', $payload['note'])
+                ->exists();
+
+            if ($exists) {
+                throw new \Exception('Catatan siswa yang sama sudah ada. Baris ini dilewati.');
+            }
+
+            StudentNote::query()->create($payload);
+
+            return 'created';
+        });
+    }
+
+    /**
+     * @param array<string, string|null> $row
+     * @return array<string, string|null>
+     */
+    protected function normalizeStudentNoteImportRow(array $row): array
+    {
+        $aliases = [
+            'student_nik' => ['nik_siswa', 'nik'],
+            'student_nisn' => ['nisn_siswa', 'nisn'],
+            'student_name' => ['nama_siswa', 'siswa'],
+            'teacher_nip' => ['nip_guru', 'nip'],
+            'teacher_name' => ['nama_guru', 'guru'],
+            'title' => ['judul'],
+            'category' => ['kategori'],
+            'note' => ['catatan', 'isi_catatan', 'deskripsi'],
+            'follow_up_at' => ['tanggal_tindak_lanjut', 'tindak_lanjut_pada'],
+            'resolved_at' => ['tanggal_selesai', 'tanggal_resolved', 'selesai_pada'],
+        ];
+
+        foreach ($aliases as $target => $sources) {
+            if (($row[$target] ?? null) !== null) {
+                continue;
+            }
+
+            foreach ($sources as $source) {
+                if (($row[$source] ?? null) !== null) {
+                    $row[$target] = $row[$source];
+                    break;
+                }
+            }
+        }
+
+        $row['category'] = $row['category'] ?? 'umum';
+
+        return $row;
+    }
+
+    /**
+     * @param array<string, string|null> $row
+     */
+    protected function resolveStudentForNote(array $row): ?Student
+    {
+        $nik = $row['student_nik'] ?? null;
+        $nisn = $row['student_nisn'] ?? null;
+        $name = $row['student_name'] ?? null;
+
+        if ($nik === null && $nisn === null && $name === null) {
+            return null;
+        }
+
+        return Student::query()
+            ->where(function ($query) use ($nik, $nisn, $name): void {
+                $query
+                    ->when($nik, fn ($studentQuery, string $value) => $studentQuery->orWhere('nik', $value))
+                    ->when($nisn, fn ($studentQuery, string $value) => $studentQuery->orWhere('nisn', $value))
+                    ->when($name, fn ($studentQuery, string $value) => $studentQuery->orWhere('name', $value));
+            })
+            ->first();
+    }
+
+    /**
+     * @param array<string, string|null> $row
+     */
+    protected function resolveTeacherForNote(array $row): ?Teacher
+    {
+        $nip = $row['teacher_nip'] ?? null;
+        $name = $row['teacher_name'] ?? null;
+
+        if ($nip === null && $name === null) {
+            return null;
+        }
+
+        return Teacher::query()
+            ->where(function ($query) use ($nip, $name): void {
+                $query
+                    ->when($nip, fn ($teacherQuery, string $value) => $teacherQuery->orWhere('nip', $value))
+                    ->when($name, fn ($teacherQuery, string $value) => $teacherQuery->orWhere('name', $value));
+            })
+            ->first();
+    }
+    /**
      * @param array<string, string|null> $row
      * @return array<string, string|null>
      */
@@ -588,6 +722,9 @@ class CsvImportExportService
             ]],
             'jadwal' => ['template-import-jadwal.csv', [
                 'nip_guru', 'nama_mapel', 'nama_kelas', 'hari', 'jam_mulai', 'jam_selesai', 'ruangan',
+            ]],
+            'catatan-siswa' => ['template-import-catatan-siswa.csv', [
+                'nik_siswa', 'nisn', 'nama_siswa', 'nip_guru', 'nama_guru', 'judul', 'kategori', 'catatan', 'tanggal_tindak_lanjut', 'tanggal_selesai',
             ]],
             default => abort(404, 'Template import tidak ditemukan.'),
         };

@@ -76,7 +76,13 @@ const timeLabel = (value?: string | null) => (value ? value.substring(0, 5) : '-
 
 const formatDate = (value?: string | null) => {
     if (!value) return '-';
-    return new Date(`${value}T00:00:00`).toLocaleDateString('id-ID', {
+
+    const rawValue = String(value);
+    const date = rawValue.includes('T') ? new Date(rawValue) : new Date(`${rawValue}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) return '-';
+
+    return date.toLocaleDateString('id-ID', {
         weekday: 'long',
         day: '2-digit',
         month: 'long',

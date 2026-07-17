@@ -1315,7 +1315,19 @@ class PortalDashboardController extends Controller
 
         if ($format === 'xls') {
             return response()
-                ->view('dashboard.exports.teacher-attendance-xls', $data)
+                ->view('dashboard.exports.admin-table-xls', [
+                    'title' => 'Rekap Absensi Mapel',
+                    'headers' => ['Konteks', 'Tanggal', 'Mapel', 'Kelas', 'Siswa', 'Status', 'Catatan'],
+                    'rows' => collect($rows)->map(fn (array $row): array => [
+                        'Absensi Mapel',
+                        $row['date'],
+                        $row['subject'],
+                        $row['class_name'],
+                        $row['student'],
+                        $row['status'],
+                        $row['notes'],
+                    ])->all(),
+                ])
                 ->header('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '.xls"');
         }
@@ -1386,7 +1398,18 @@ class PortalDashboardController extends Controller
 
         if ($format === 'xls') {
             return response()
-                ->view('dashboard.exports.homeroom-attendance-xls', $data)
+                ->view('dashboard.exports.admin-table-xls', [
+                    'title' => 'Rekap Absensi Kelas',
+                    'headers' => ['Konteks', 'Tanggal', 'Kelas', 'Siswa', 'Status', 'Catatan'],
+                    'rows' => collect($rows)->map(fn (array $row): array => [
+                        'Absensi Kelas Perwalian',
+                        $row['date'],
+                        $row['class_name'],
+                        $row['student'],
+                        $row['status'],
+                        $row['notes'],
+                    ])->all(),
+                ])
                 ->header('Content-Type', 'application/vnd.ms-excel; charset=UTF-8')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '.xls"');
         }

@@ -82,7 +82,7 @@ class AcademicCalendarService
             ->where('is_active', true)
             ->where('type', 'hari_efektif')
             ->get()
-            ->sum(fn (AcademicCalendar $event): int => $event->start_date->diffInDays($event->end_date) + 1);
+            ->sum(fn(AcademicCalendar $event): int => $event->start_date->diffInDays($event->end_date) + 1);
     }
 
     public function attendanceStatusForDate(string $academicYear, string $semester, string $date): array
@@ -96,19 +96,19 @@ class AcademicCalendarService
             ->orderBy('start_date')
             ->get();
 
-        $blockingEvent = $events->first(fn (AcademicCalendar $event): bool => $event->is_holiday || in_array($event->type, self::ATTENDANCE_DISABLED_TYPES, true));
+        $blockingEvent = $events->first(fn(AcademicCalendar $event): bool => $event->is_holiday || in_array($event->type, self::ATTENDANCE_DISABLED_TYPES, true));
 
         if ($blockingEvent !== null) {
             return [
                 'allowed' => false,
-                'message' => 'Tanggal ini termasuk '.$blockingEvent->category.' pada kalender akademik.',
+                'message' => 'Tanggal ini termasuk ' . $blockingEvent->category . ' pada kalender akademik.',
                 'events' => $events,
             ];
         }
 
         return [
             'allowed' => true,
-            'message' => $events->contains(fn (AcademicCalendar $event): bool => $event->type === 'hari_efektif')
+            'message' => $events->contains(fn(AcademicCalendar $event): bool => $event->type === 'hari_efektif')
                 ? 'Tanggal ini tercatat sebagai hari efektif sekolah.'
                 : 'Tanggal ini tidak ditandai libur pada kalender akademik.',
             'events' => $events,
@@ -136,13 +136,13 @@ class AcademicCalendarService
     {
         return AcademicCalendar::query()
             ->with('createdBy:id,name,email')
-            ->when($filters['academic_year'] ?? null, fn ($query, string $year) => $query->where('academic_year', $year))
-            ->when($filters['semester'] ?? null, fn ($query, string $semester) => $query->where('semester', $semester))
-            ->when($filters['category'] ?? null, fn ($query, string $category) => $query->where('category', $category))
-            ->when($filters['type'] ?? null, fn ($query, string $type) => $query->where('type', $type))
-            ->when(array_key_exists('is_holiday', $filters), fn ($query) => $query->where('is_holiday', (bool) $filters['is_holiday']))
-            ->when(array_key_exists('is_active', $filters), fn ($query) => $query->where('is_active', (bool) $filters['is_active']))
-            ->when($filters['date_from'] ?? null, fn ($query, string $dateFrom) => $query->whereDate('end_date', '>=', $dateFrom))
-            ->when($filters['date_to'] ?? null, fn ($query, string $dateTo) => $query->whereDate('start_date', '<=', $dateTo));
+            ->when($filters['academic_year'] ?? null, fn($query, string $year) => $query->where('academic_year', $year))
+            ->when($filters['semester'] ?? null, fn($query, string $semester) => $query->where('semester', $semester))
+            ->when($filters['category'] ?? null, fn($query, string $category) => $query->where('category', $category))
+            ->when($filters['type'] ?? null, fn($query, string $type) => $query->where('type', $type))
+            ->when(array_key_exists('is_holiday', $filters), fn($query) => $query->where('is_holiday', (bool) $filters['is_holiday']))
+            ->when(array_key_exists('is_active', $filters), fn($query) => $query->where('is_active', (bool) $filters['is_active']))
+            ->when($filters['date_from'] ?? null, fn($query, string $dateFrom) => $query->whereDate('end_date', '>=', $dateFrom))
+            ->when($filters['date_to'] ?? null, fn($query, string $dateTo) => $query->whereDate('start_date', '<=', $dateTo));
     }
 }
