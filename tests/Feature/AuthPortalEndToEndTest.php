@@ -6,10 +6,12 @@ use App\Enums\AttendanceStatus;
 use App\Models\AppSetting;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\TeachingAssignment;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -192,6 +194,85 @@ class AuthPortalEndToEndTest extends TestCase
 
         $this->assertContains('guru_mapel', $teacherUser->roles);
         $this->assertContains('siswa', $studentUser->roles);
+    }
+
+    public function test_admin_can_import_guru_with_indonesian_csv_headers(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $csv = implode("\n", [
+            'nip,nik,nama,tempat_lahir,tanggal_lahir,jenis_kelamin,agama,status_kepegawaian,jabatan,tanggal_masuk,pendidikan_terakhir,jurusan,universitas,no_hp,alamat',
+            '991122,330000009911,Guru CSV,Bandung,1988-05-01,Laki-laki,Islam,GTY,Guru,2020-01-01,S1,Pendidikan,Universitas Contoh,081234567899,Jl Import',
+        ]);
+
+        $this->postJson('/api/v1/admin/import/guru', [
+            'file' => UploadedFile::fake()->createWithContent('guru.csv', $csv),
+        ])->assertOk()
+            ->assertJsonPath('created', 1)
+            ->assertJsonPath('updated', 0)
+            ->assertJsonPath('failed', 0);
+
+        $this->assertDatabaseHas('teachers', [
+            'nip' => '991122',
+            'name' => 'Guru CSV',
+            'gender' => 'L',
+            'phone' => '081234567899',
+        ]);
+    }
+
+    public function test_admin_can_import_siswa_with_indonesian_csv_headers(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $csv = implode("\n", [
+            'nik,nisn,nama,jenis_kelamin,tanggal_lahir,no_hp,alamat,nama_kelas,agama,tempat_lahir,nama_ayah,nama_ibu,no_hp_orang_tua,sekolah_asal',
+            '880001,1234567890,Siswa CSV,Laki-laki,2011-02-03,081234567800,Jl Siswa Import,X IPA 1,Islam,Bandung,Bapak CSV,Ibu CSV,081234567801,SD Contoh',
+        ]);
+
+        $this->postJson('/api/v1/admin/import/siswa', [
+            'file' => UploadedFile::fake()->createWithContent('siswa.csv', $csv),
+        ])->assertOk()
+            ->assertJsonPath('created', 1)
+            ->assertJsonPath('updated', 0)
+            ->assertJsonPath('failed', 0);
+
+        $classId = SchoolClass::query()->where('name', 'X IPA 1')->value('id');
+
+        $this->assertDatabaseHas('students', [
+            'nik' => '880001',
+            'nisn' => '1234567890',
+            'name' => 'Siswa CSV',
+            'gender' => 'L',
+            'school_class_id' => $classId,
+        ]);
+    }
+    public function test_admin_can_import_jadwal_with_common_csv_headers(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $csv = implode("\n", [
+            'nip,kode_mapel,kelas,hari,mulai,selesai,ruang',
+            '198801010001,MAT,X IPA 1,Minggu,15:00,16:00,R-Import',
+        ]);
+
+        $this->postJson('/api/v1/admin/import/jadwal', [
+            'file' => UploadedFile::fake()->createWithContent('jadwal.csv', $csv),
+        ])->assertOk()
+            ->assertJsonPath('created', 1)
+            ->assertJsonPath('updated', 0)
+            ->assertJsonPath('failed', 0);
+
+        $classId = SchoolClass::query()->where('name', 'X IPA 1')->value('id');
+        $subjectId = Subject::query()->where('code', 'MAT')->value('id');
+
+        $this->assertDatabaseHas('teaching_assignments', [
+            'subject_id' => $subjectId,
+            'school_class_id' => $classId,
+            'day_of_week' => 6,
+            'start_time' => '15:00',
+            'end_time' => '16:00',
+            'room' => 'R-Import',
+        ]);
     }
 
     public function test_admin_can_access_non_admin_portal_features_without_teacher_or_student_profile(): void

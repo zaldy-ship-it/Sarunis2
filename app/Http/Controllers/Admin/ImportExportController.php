@@ -51,7 +51,10 @@ class ImportExportController extends Controller
         ];
 
         if ($request->expectsJson()) {
-            return response()->json($response);
+            $importedRows = $summary['created'] + $summary['updated'];
+            $status = $importedRows === 0 && $summary['failed'] > 0 ? 422 : 200;
+
+            return response()->json($response, $status);
         }
 
         return back()->with('import_status', sprintf(

@@ -197,12 +197,25 @@ export const Siswa = () => {
             const response = await api.post('/admin/import/siswa', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            toast.success(response.data.message || 'Import selesai!');
+            const result = response.data;
+            const summary = `${result.created || 0} dibuat, ${result.updated || 0} diperbarui, ${result.failed || 0} gagal.`;
+
+            if ((result.failed || 0) > 0) {
+                const firstError = result.errors?.[0];
+                const detail = firstError ? ` Baris ${firstError.row}: ${firstError.messages?.join(', ')}` : '';
+                toast.warning(`Import selesai: ${summary}${detail}`);
+            } else {
+                toast.success(`Import berhasil: ${summary}`);
+            }
+
             setIsImportOpen(false);
             setImportFile(null);
             fetchStudents();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Gagal mengimport data');
+            const data = error.response?.data;
+            const firstError = data?.errors?.[0];
+            const detail = firstError ? `Baris ${firstError.row}: ${firstError.messages?.join(', ')}` : data?.message;
+            toast.error(detail || 'Gagal mengimport data');
         } finally {
             setImporting(false);
         }
@@ -226,7 +239,7 @@ export const Siswa = () => {
                     </button>
                     <button onClick={() => setIsImportOpen(true)} className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
                         <Upload className="w-4 h-4" />
-                        Import Excel/CSV
+                        Import CSV
                     </button>
                     <button onClick={handleOpenCreate} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
                         <Plus className="w-4 h-4" />
@@ -492,10 +505,10 @@ export const Siswa = () => {
                         <form onSubmit={handleImport} className="p-5 space-y-4">
                             <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-500 transition-colors">
                                 <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                                <span className="text-xs text-slate-500 block mb-3">Format file yang diperbolehkan: .csv</span>
+                                <span className="text-xs text-slate-500 block mb-3">Format file yang diperbolehkan: .csv atau .txt dari Excel</span>
                                 <input
                                     type="file"
-                                    accept=".csv"
+                                    accept=".csv,.txt,text/csv,text/plain"
                                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                                     className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 file:cursor-pointer hover:file:bg-blue-100"
                                     required

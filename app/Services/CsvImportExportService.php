@@ -79,6 +79,7 @@ class CsvImportExportService
     public function importStudents(UploadedFile $file): array
     {
         return $this->importRows($file, function (array $row): string {
+            $row = $this->normalizeStudentImportRow($row);
             $schoolClass = $this->resolveSchoolClass($row['school_class_id'] ?? null, $row['class_name'] ?? null);
             $student = Student::query()->where('nik', (string) ($row['nik'] ?? ''))->first();
             $payload = [
@@ -86,7 +87,7 @@ class CsvImportExportService
                 'nik' => $row['nik'] ?? null,
                 'nisn' => $row['nisn'] ?? null,
                 'name' => $row['name'] ?? null,
-                'gender' => $row['gender'] ?? null,
+                'gender' => isset($row['gender']) ? strtoupper((string) $row['gender']) : null,
                 'birth_date' => $row['birth_date'] ?? null,
                 'phone' => $row['phone'] ?? null,
                 'address' => $row['address'] ?? null,
@@ -159,11 +160,69 @@ class CsvImportExportService
     }
 
     /**
+     * @param array<string, string|null> $row
+     * @return array<string, string|null>
+     */
+    protected function normalizeStudentImportRow(array $row): array
+    {
+        $aliases = [
+            'name' => ['nama', 'nama_siswa', 'student_name'],
+            'gender' => ['jenis_kelamin', 'jk'],
+            'birth_date' => ['tanggal_lahir', 'tgl_lahir'],
+            'phone' => ['telepon', 'no_hp', 'nomor_hp', 'hp'],
+            'address' => ['alamat'],
+            'school_class_id' => ['id_kelas', 'kelas_id'],
+            'class_name' => ['nama_kelas', 'kelas'],
+            'religion' => ['agama'],
+            'birth_place' => ['tempat_lahir'],
+            'address_street' => ['jalan', 'alamat_jalan'],
+            'address_village' => ['desa', 'kelurahan'],
+            'address_district' => ['kecamatan'],
+            'address_province' => ['provinsi'],
+            'address_city' => ['kota', 'kabupaten'],
+            'father_name' => ['nama_ayah', 'ayah'],
+            'father_education' => ['pendidikan_ayah'],
+            'father_occupation' => ['pekerjaan_ayah'],
+            'mother_name' => ['nama_ibu', 'ibu'],
+            'mother_education' => ['pendidikan_ibu'],
+            'mother_occupation' => ['pekerjaan_ibu'],
+            'parent_address' => ['alamat_orang_tua', 'alamat_wali'],
+            'parent_province' => ['provinsi_orang_tua', 'provinsi_wali'],
+            'parent_city' => ['kota_orang_tua', 'kota_wali'],
+            'postal_code' => ['kode_pos'],
+            'parent_phone' => ['telepon_orang_tua', 'no_hp_orang_tua', 'hp_orang_tua', 'telepon_wali', 'no_hp_wali'],
+            'previous_school' => ['sekolah_asal'],
+        ];
+
+        foreach ($aliases as $target => $sources) {
+            if (($row[$target] ?? null) !== null) {
+                continue;
+            }
+
+            foreach ($sources as $source) {
+                if (($row[$source] ?? null) !== null) {
+                    $row[$target] = $row[$source];
+                    break;
+                }
+            }
+        }
+
+        $gender = strtolower(trim((string) ($row['gender'] ?? '')));
+        $row['gender'] = match ($gender) {
+            'l', 'laki', 'laki-laki', 'pria', 'male' => 'L',
+            'p', 'perempuan', 'wanita', 'female' => 'P',
+            default => $row['gender'] ?? null,
+        };
+
+        return $row;
+    }
+    /**
      * @return array{created:int,updated:int,failed:int,errors:array<int, array{row:int,messages:array<int,string>}>}
      */
     public function importTeachers(UploadedFile $file): array
     {
         return $this->importRows($file, function (array $row): string {
+            $row = $this->normalizeTeacherImportRow($row);
             $teacher = Teacher::query()->where('nip', (string) ($row['nip'] ?? ''))->first();
             $payload = [
                 'nik' => $row['nik'] ?? null,
@@ -171,7 +230,7 @@ class CsvImportExportService
                 'name' => $row['name'] ?? null,
                 'birth_place' => $row['birth_place'] ?? null,
                 'birth_date' => $row['birth_date'] ?? null,
-                'gender' => $row['gender'] ?? null,
+                'gender' => isset($row['gender']) ? strtoupper((string) $row['gender']) : null,
                 'religion' => $row['religion'] ?? null,
                 'employment_status' => $row['employment_status'] ?? null,
                 'position' => $row['position'] ?? null,
@@ -214,10 +273,83 @@ class CsvImportExportService
             return 'updated';
         });
     }
+    /**
+     * @param array<string, string|null> $row
+     * @return array<string, string|null>
+     */
+    protected function normalizeTeacherImportRow(array $row): array
+    {
+        $aliases = [
+            'name' => ['nama', 'nama_guru', 'teacher_name'],
+            'birth_place' => ['tempat_lahir'],
+            'birth_date' => ['tanggal_lahir', 'tgl_lahir'],
+            'gender' => ['jenis_kelamin', 'jk'],
+            'religion' => ['agama'],
+            'employment_status' => ['status_kepegawaian', 'status_pegawai'],
+            'position' => ['jabatan'],
+            'join_date' => ['tanggal_masuk', 'tgl_masuk', 'mulai_bergabung'],
+            'last_education' => ['pendidikan_terakhir'],
+            'major' => ['jurusan'],
+            'university' => ['universitas', 'kampus'],
+            'phone' => ['telepon', 'no_hp', 'nomor_hp', 'hp'],
+            'address' => ['alamat'],
+        ];
+
+        foreach ($aliases as $target => $sources) {
+            if (($row[$target] ?? null) !== null) {
+                continue;
+            }
+
+            foreach ($sources as $source) {
+                if (($row[$source] ?? null) !== null) {
+                    $row[$target] = $row[$source];
+                    break;
+                }
+            }
+        }
+
+        $gender = strtolower(trim((string) ($row['gender'] ?? '')));
+        $row['gender'] = match ($gender) {
+            'l', 'laki', 'laki-laki', 'pria', 'male' => 'L',
+            'p', 'perempuan', 'wanita', 'female' => 'P',
+            default => $row['gender'] ?? null,
+        };
+
+        return $row;
+    }
 
     /**
-     * @return array{created:int,updated:int,failed:int,errors:array<int, array{row:int,messages:array<int,string>}>}
+     * @param array<string, string|null> $row
+     * @return array<string, string|null>
      */
+    protected function normalizeScheduleImportRow(array $row): array
+    {
+        $aliases = [
+            'nip_guru' => ['nip', 'nip_guru_pengajar', 'nip_pengajar', 'guru_nip', 'teacher_nip'],
+            'nama_mapel' => ['kode_mapel', 'mapel', 'mata_pelajaran', 'nama_mata_pelajaran', 'subject', 'subject_code'],
+            'nama_kelas' => ['kelas', 'class_name', 'nama_rombel', 'rombel'],
+            'hari' => ['day', 'day_of_week'],
+            'jam_mulai' => ['mulai', 'start_time', 'jam_awal'],
+            'jam_selesai' => ['selesai', 'end_time', 'jam_akhir'],
+            'ruangan' => ['room', 'ruang'],
+        ];
+
+        foreach ($aliases as $target => $sources) {
+            if (($row[$target] ?? null) !== null) {
+                continue;
+            }
+
+            foreach ($sources as $source) {
+                if (($row[$source] ?? null) !== null) {
+                    $row[$target] = $row[$source];
+                    break;
+                }
+            }
+        }
+
+        return $row;
+    }
+
     public function importSchedules(UploadedFile $file): array
     {
         $academicYear = $this->appSettingService->value('academic_year', '2025/2026') ?: '2025/2026';
@@ -227,15 +359,19 @@ class CsvImportExportService
         ];
 
         return $this->importRows($file, function (array $row) use ($academicYear, $dayMap): string {
+            $row = $this->normalizeScheduleImportRow($row);
+            $teacherNip = (string) ($row['nip_guru'] ?? '');
+            $subjectInput = (string) ($row['nama_mapel'] ?? '');
+            $className = trim((string) ($row['nama_kelas'] ?? ''));
+
             // Resolve Teacher
-            $teacher = Teacher::query()->where('nip', (string) ($row['nip_guru'] ?? ''))->first();
+            $teacher = Teacher::query()->where('nip', $teacherNip)->first();
             // Resolve Subject
             $subject = Subject::query()
-                ->where('code', (string) ($row['nama_mapel'] ?? ''))
-                ->orWhere('name', (string) ($row['nama_mapel'] ?? ''))
+                ->where('code', $subjectInput)
+                ->orWhere('name', $subjectInput)
                 ->first();
             // Resolve class name now; create the class only after the row passes validation.
-            $className = trim((string) ($row['nama_kelas'] ?? ''));
 
             // Resolve Day
             $dayInput = strtolower(trim((string) ($row['hari'] ?? '')));
@@ -263,9 +399,9 @@ class CsvImportExportService
                 'room' => ['nullable', 'string', 'max:50'],
             ], [
                 'teacher_id.required' => 'NIP Guru tidak valid atau tidak terdaftar.',
-                'teacher_id.exists' => "NIP Guru '{$row['nip_guru']}' tidak terdaftar dalam sistem.",
+                'teacher_id.exists' => "NIP Guru '{$teacherNip}' tidak terdaftar dalam sistem.",
                 'subject_id.required' => 'Kode/Nama Mapel tidak valid atau tidak terdaftar.',
-                'subject_id.exists' => "Mapel '{$row['nama_mapel']}' tidak ditemukan dalam sistem.",
+                'subject_id.exists' => "Mapel '{$subjectInput}' tidak ditemukan dalam sistem.",
                 'class_name.required' => 'Nama Kelas wajib diisi.',
                 'day_of_week.required' => 'Hari tidak valid. Gunakan nama hari (Senin-Minggu) atau angka (0-6).',
                 'start_time.required' => 'Jam mulai wajib diisi (format HH:MM).',
@@ -321,7 +457,7 @@ class CsvImportExportService
                 $conflictClass = $conflictingTeacher->schoolClass?->name ?? '-';
                 $conflictTime = substr($conflictingTeacher->start_time, 0, 5) . '-' . substr($conflictingTeacher->end_time, 0, 5);
                 throw new \Exception(
-                    "⚠️ TABRAKAN GURU: Guru NIP {$row['nip_guru']} ({$teacher?->name}) sudah mengajar mapel \"{$conflictSubject}\" di kelas {$conflictClass} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 jadwal untuk guru yang sama di waktu yang bertabrakan."
+                    "TABRAKAN GURU: Guru NIP {$teacherNip} ({$teacher?->name}) sudah mengajar mapel \"{$conflictSubject}\" di kelas {$conflictClass} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 jadwal untuk guru yang sama di waktu yang bertabrakan."
                 );
             }
 
@@ -331,7 +467,7 @@ class CsvImportExportService
                 $conflictTeacher = $conflictingClass->teacher?->name ?? '-';
                 $conflictTime = substr($conflictingClass->start_time, 0, 5) . '-' . substr($conflictingClass->end_time, 0, 5);
                 throw new \Exception(
-                    "⚠️ TABRAKAN KELAS: Kelas {$row['nama_kelas']} sudah memiliki jadwal mapel \"{$conflictSubject}\" oleh {$conflictTeacher} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 mapel di kelas yang sama pada waktu yang bertabrakan."
+                    "TABRAKAN KELAS: Kelas {$className} sudah memiliki jadwal mapel \"{$conflictSubject}\" oleh {$conflictTeacher} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 mapel di kelas yang sama pada waktu yang bertabrakan."
                 );
             }
 
@@ -377,6 +513,8 @@ class CsvImportExportService
     protected function importRows(UploadedFile $file, callable $callback): array
     {
         $rows = $this->readCsv($file);
+        abort_if($rows === [], 422, 'File import tidak memiliki baris data.');
+
         $summary = [
             'created' => 0,
             'updated' => 0,

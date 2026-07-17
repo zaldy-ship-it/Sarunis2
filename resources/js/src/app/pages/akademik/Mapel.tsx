@@ -757,10 +757,10 @@ export const Mapel = () => {
                         <form onSubmit={handleImport} className="p-5 space-y-4">
                             <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-500 transition-colors">
                                 <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                                <span className="text-xs text-slate-500 block mb-3">Format file yang diperbolehkan: .csv</span>
+                                <span className="text-xs text-slate-500 block mb-3">Format file yang diperbolehkan: .csv atau .txt dari Excel</span>
                                 <input
                                     type="file"
-                                    accept=".csv"
+                                    accept=".csv,.txt,text/csv,text/plain"
                                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                                     className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 file:cursor-pointer hover:file:bg-blue-100"
                                     required
@@ -782,7 +782,7 @@ export const Mapel = () => {
 
                             <div className="flex gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
                                 <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0" />
-                                <p>Format CSV harus memuat kolom: <strong>nip_guru, nama_mapel, nama_kelas, hari, jam_mulai, jam_selesai, ruangan</strong>. NIP Guru dan Nama Mapel harus sudah terdaftar.</p>
+                                <p>Format CSV disarankan memakai kolom: <strong>nip_guru, nama_mapel, nama_kelas, hari, jam_mulai, jam_selesai, ruangan</strong>. Kolom umum seperti nip, kode_mapel, kelas, mulai, selesai, ruang juga diterima.</p>
                             </div>
 
                             <div className="flex justify-end gap-2">
