@@ -54,9 +54,19 @@ class HomeroomPortalController extends Controller
         }
 
         $teacher = $this->teacherFromRequest($request);
+        $schoolClassId = $filters['school_class_id'] ?? null;
+
+        if ($schoolClassId !== null) {
+            $allowedClassIds = $this->schoolClassService->classesForHomeroomTeacher($teacher)
+                ->pluck('id')
+                ->all();
+
+            abort_unless(in_array($schoolClassId, $allowedClassIds, true), 403, 'Anda tidak berhak mengakses siswa kelas ini.');
+        }
 
         return response()->json([
-            'data' => $this->schoolClassService->studentsForHomeroomTeacher($teacher),
+            'data' => $this->schoolClassService->students($teacher->id, $schoolClassId),
         ]);
     }
 }
+

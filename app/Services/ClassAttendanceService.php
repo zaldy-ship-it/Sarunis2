@@ -280,13 +280,16 @@ class ClassAttendanceService
 
     public function isFirstPeriodTeacherForDate(Teacher $teacher, int $schoolClassId, string $dateString): bool
     {
-        $academicYear = $this->appSettingService->value('academic_year', '2025/2026') ?: '2025/2026';
+        $schoolClass = SchoolClass::query()->find($schoolClassId);
         $date = CarbonImmutable::parse($dateString);
         $dayOfWeek = $this->scheduleDayFromIso($date->dayOfWeekIso);
 
         $earliestAssignment = TeachingAssignment::query()
             ->where('school_class_id', $schoolClassId)
-            ->where('academic_year', $academicYear)
+            ->when(
+                $schoolClass?->academic_year,
+                fn ($query, string $academicYear) => $query->where('academic_year', $academicYear),
+            )
             ->where('day_of_week', $dayOfWeek)
             ->orderBy('start_time', 'asc')
             ->first();
@@ -301,16 +304,12 @@ class ClassAttendanceService
 
     public function allowedClassIdsForTeacher(Teacher $teacher): array
     {
-        $academicYear = $this->appSettingService->value('academic_year', '2025/2026') ?: '2025/2026';
-
         $homeroomClassIds = SchoolClass::query()
-            ->where('academic_year', $academicYear)
             ->where('homeroom_teacher_id', $teacher->id)
             ->pluck('id')
             ->all();
 
         $teacherAssignments = TeachingAssignment::query()
-            ->where('academic_year', $academicYear)
             ->where('teacher_id', $teacher->id)
             ->get();
 
@@ -331,4 +330,5 @@ class ClassAttendanceService
         return array_values(array_unique(array_merge($homeroomClassIds, $firstPeriodClassIds)));
     }
 }
+
 

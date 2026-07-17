@@ -108,6 +108,11 @@ export const AdminRecapExport = () => {
 
     // Load static option values
     useEffect(() => {
+        const rowsFromResponse = <T,>(response: any): T[] => {
+            const payload = response?.data?.data;
+            return Array.isArray(payload) ? payload : [];
+        };
+
         const loadMetadata = async () => {
             try {
                 const [classRes, subjectRes, studentRes] = await Promise.all([
@@ -115,9 +120,10 @@ export const AdminRecapExport = () => {
                     api.get('/admin/mapel', { params: { per_page: 500 } }),
                     api.get('/admin/siswa', { params: { per_page: 500 } }),
                 ]);
-                setClasses(classRes.data.data || []);
-                setSubjects(subjectRes.data.data || []);
-                setStudents(studentRes.data.data || []);
+
+                setClasses(rowsFromResponse<SchoolClass>(classRes));
+                setSubjects(rowsFromResponse<Subject>(subjectRes));
+                setStudents(rowsFromResponse<Student>(studentRes));
             } catch (err) {
                 console.error('Failed to load filter metadata:', err);
                 toast.error('Gagal memuat pilihan filter.');
@@ -575,3 +581,5 @@ export const AdminRecapExport = () => {
         </div>
     );
 };
+
+
