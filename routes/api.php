@@ -159,6 +159,7 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('guru-mapel')->middleware('role:guru_mapel')->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'teacher']);
+        Route::get('/absensi/export/{format}', [PortalDashboardController::class, 'teacherAttendanceExport']);
         Route::get('/jadwal-ajar', [TeacherPortalController::class, 'schedule']);
         Route::get('/siswa', [TeacherPortalController::class, 'students']);
         Route::get('/rekap-absensi-mapel', [SubjectAttendanceController::class, 'index']);
@@ -169,6 +170,7 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('walikelas')->middleware('homeroom-class')->group(function () {
         Route::get('/dashboard', [PortalDashboardController::class, 'homeroom']);
+        Route::get('/absensi/export/{format}', [PortalDashboardController::class, 'homeroomAttendanceExport']);
         Route::get('/kelas', [HomeroomPortalController::class, 'classes']);
         Route::get('/siswa', [HomeroomPortalController::class, 'students']);
         Route::get('/catatan', [StudentNoteController::class, 'homeroomIndex']);

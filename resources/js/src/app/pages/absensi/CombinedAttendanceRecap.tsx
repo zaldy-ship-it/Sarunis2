@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { AlertCircle, BarChart3, CalendarDays, Filter, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, BarChart3, CalendarDays, Filter, RefreshCw, Search, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
@@ -178,6 +178,50 @@ export const CombinedAttendanceRecap = () => {
         }
     }, [recapType, selectedClassId, selectedScheduleId, dateFrom, dateTo]);
 
+    const handleDownload = async (format: 'csv' | 'xls') => {
+        try {
+            toast.loading(`Mempersiapkan unduhan ${format.toUpperCase()}...`, { id: 'download-toast' });
+            
+            const params: Record<string, string> = {
+                date_from: dateFrom,
+                date_to: dateTo,
+            };
+
+            let url = '';
+            let filename = '';
+
+            if (recapType === 'kelas') {
+                if (selectedClassId) params.school_class_id = selectedClassId;
+                url = `/walikelas/absensi/export/${format}`;
+                filename = `rekap-absensi-kelas-${dateFrom}-ke-${dateTo}.${format}`;
+            } else {
+                if (selectedScheduleId) params.teaching_assignment_id = selectedScheduleId;
+                url = `/guru-mapel/absensi/export/${format}`;
+                filename = `rekap-absensi-mapel-${dateFrom}-ke-${dateTo}.${format}`;
+            }
+
+            const response = await api.get(url, {
+                params,
+                responseType: 'blob'
+            });
+
+            const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+
+            toast.success('Unduhan berhasil!', { id: 'download-toast' });
+        } catch (error) {
+            console.error('Download error:', error);
+            toast.error('Gagal mengunduh data absensi.', { id: 'download-toast' });
+        }
+    };
+
     // Fetch records when tab or default filters load
     useEffect(() => {
         fetchRecords();
@@ -293,19 +337,39 @@ export const CombinedAttendanceRecap = () => {
             <div className="mx-auto w-full max-w-7xl space-y-5">
                 
                 {/* Header */}
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Rekap Absensi</h1>
-                        <p className="mt-1 text-sm text-slate-500">Ringkasan statistik kehadiran siswa untuk evaluasi berkala.</p>
+                        <p className="mt-1 text-sm text-slate-500 font-medium">Ringkasan statistik kehadiran siswa untuk evaluasi berkala.</p>
                     </div>
-                    <button
-                        onClick={fetchRecords}
-                        disabled={loading}
-                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 sm:w-auto"
-                    >
-                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                        Muat Ulang
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <button
+                            onClick={fetchRecords}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                            Muat Ulang
+                        </button>
+                        
+                        <button
+                            onClick={() => handleDownload('csv')}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-transparent bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60 cursor-pointer"
+                        >
+                            <Download className="h-4 w-4" />
+                            Unduh CSV
+                        </button>
+
+                        <button
+                            onClick={() => handleDownload('xls')}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-transparent bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
+                        >
+                            <Download className="h-4 w-4" />
+                            Unduh Excel (XLS)
+                        </button>
+                    </div>
                 </div>
 
                 {/* Tabs Switch (Only show if user is a walikelas, meaning they have class recap option) */}

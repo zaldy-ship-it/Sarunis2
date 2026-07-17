@@ -148,7 +148,6 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
             {
                 id: "teacher-absensi", label: "Absensi", icon: CheckSquare,
                 subItems: [
-                    { id: "teacher-absensi-riwayat-mapel", label: "Riwayat Absensi Mapel", path: "/guru-mapel/absensi/riwayat-mapel" },
                     { id: "teacher-absensi-rekap-mapel", label: "Rekap Absensi", path: "/guru-mapel/absensi/rekap-mapel" },
                 ]
             },
@@ -181,7 +180,6 @@ export const WALIKELAS_NAV_GROUPS: NavGroup[] = [
                 subItems: [
                     { id: "walikelas-absensi-data-kelas", label: "Lihat Data Kelas", path: "/walikelas/absensi/data-kelas" },
                     { id: "walikelas-absensi-input", label: "Input Absen Kelas", path: "/walikelas/absensi/input" },
-                    { id: "walikelas-absensi-riwayat", label: "Riwayat Absensi", path: "/walikelas/absensi/riwayat" },
                     { id: "walikelas-absensi-rekap", label: "Rekap Absensi", path: "/walikelas/absensi/rekap" },
                 ]
             },

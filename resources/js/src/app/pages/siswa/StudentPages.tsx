@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, BookOpen, CalendarDays, FileText, RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, BarChart3, BookOpen, CalendarDays, FileText, RefreshCw, Search, ChevronDown, ChevronUp, Clock, User, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 
 type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpha';
 
@@ -167,8 +169,8 @@ const SummaryCards = ({ records }: { records: AttendanceRecord[] }) => {
 export const StudentSchedule = ({ portal = 'siswa' }: { portal?: 'siswa' | 'orang-tua' }) => {
     const [schedules, setSchedules] = useState<TeachingAssignment[]>([]);
     const [loading, setLoading] = useState(true);
-    // Hari ini terbuka otomatis: JS getDay() (Minggu=0..Sabtu=6) -> index DAY_NAMES (Senin=0..Minggu=6)
-    const [openDay, setOpenDay] = useState<string>(DAY_NAMES[(new Date().getDay() + 6) % 7]);
+    // Active Day: JS getDay() (Minggu=0..Sabtu=6) -> index DAY_NAMES (Senin=0..Minggu=6)
+    const [selectedDay, setSelectedDay] = useState<string>(DAY_NAMES[(new Date().getDay() + 6) % 7]);
     const { children, selectedStudentId, setSelectedStudentId } = useParentChildren(portal);
 
     const fetchSchedules = async () => {
@@ -189,24 +191,22 @@ export const StudentSchedule = ({ portal = 'siswa' }: { portal?: 'siswa' | 'oran
         fetchSchedules();
     }, [portal, selectedStudentId]);
 
-    const groupedSchedules = useMemo(() => {
-        return DAY_NAMES.map((day, index) => ({
-            day,
-            items: schedules
-                .filter((schedule) => schedule.day_of_week === index)
-                .sort((a, b) => timeLabel(a.start_time).localeCompare(timeLabel(b.start_time))),
-        })).filter((group) => group.items.length > 0);
-    }, [schedules]);
+    const currentDaySchedules = useMemo(() => {
+        const dayIndex = DAY_NAMES.indexOf(selectedDay);
+        return schedules
+            .filter((schedule) => schedule.day_of_week === dayIndex)
+            .sort((a, b) => timeLabel(a.start_time).localeCompare(timeLabel(b.start_time)));
+    }, [schedules, selectedDay]);
 
     return (
         <div className="min-h-full bg-slate-50 px-2 py-4 sm:p-6">
-            <div className="mx-auto max-w-6xl space-y-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="mx-auto max-w-6xl space-y-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Jadwal Pelajaran</h1>
-                        <p className="mt-1 text-sm text-slate-500">Lihat jadwal mata pelajaran, guru, jam, dan ruang kelas.</p>
+                        <p className="mt-1 text-sm text-slate-500 font-medium">Lihat jadwal mata pelajaran, guru, jam, dan ruang kelas Anda.</p>
                     </div>
-                    <button onClick={fetchSchedules} disabled={loading} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60">
+                    <button onClick={fetchSchedules} disabled={loading} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 transition-all cursor-pointer">
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                         Muat Ulang
                     </button>
@@ -214,56 +214,123 @@ export const StudentSchedule = ({ portal = 'siswa' }: { portal?: 'siswa' | 'oran
 
                 <StudentPicker portal={portal} childrenData={children} selectedStudentId={selectedStudentId} setSelectedStudentId={setSelectedStudentId} />
 
+                {/* Horizontal Tab Days Selector */}
+                <div className="flex flex-nowrap overflow-x-auto gap-2.5 pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+                    {DAY_NAMES.map((day) => {
+                        const count = schedules.filter((s) => DAY_NAMES[s.day_of_week] === day).length;
+                        const isActive = selectedDay === day;
+                        return (
+                            <button
+                                key={day}
+                                onClick={() => setSelectedDay(day)}
+                                className={cn(
+                                    "flex-shrink-0 px-4 py-3 rounded-2xl flex flex-col items-center min-w-[90px] sm:min-w-[110px] border transition-all duration-200 cursor-pointer shadow-sm",
+                                    isActive
+                                        ? "bg-gradient-to-br from-blue-600 to-indigo-700 border-blue-600 text-white font-bold scale-105"
+                                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold"
+                                )}
+                            >
+                                <span className="text-xs uppercase tracking-wider opacity-85">{day}</span>
+                                <span className={cn(
+                                    "mt-1 text-[10px] px-2 py-0.5 rounded-full",
+                                    isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500 font-bold"
+                                )}>
+                                    {count} Mapel
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+
                 {loading ? (
-                    <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white p-10 text-sm text-slate-500 shadow-sm">
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        Memuat jadwal...
-                    </div>
-                ) : groupedSchedules.length === 0 ? (
-                    <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm">
-                        <CalendarDays className="mx-auto h-10 w-10 text-slate-300" />
-                        <h2 className="mt-3 font-semibold text-slate-900">Belum ada jadwal pelajaran</h2>
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 text-sm text-slate-500 shadow-sm">
+                        <RefreshCw className="h-7 w-7 text-blue-500 animate-spin" />
+                        <p className="font-semibold text-slate-500">Memuat jadwal pelajaran...</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {groupedSchedules.map((group) => {
-                            const isOpen = openDay === group.day;
-                            return (
-                                <section key={group.day} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpenDay((prev) => (prev === group.day ? '' : group.day))}
-                                        aria-expanded={isOpen}
-                                        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-100 ${isOpen ? 'bg-slate-50' : 'bg-white'}`}
-                                    >
-                                        <div>
-                                            <h2 className="font-semibold text-slate-900">{group.day}</h2>
-                                            <p className="mt-0.5 text-xs text-slate-500">{group.items.length} mata pelajaran</p>
-                                        </div>
-                                        {isOpen ? (
-                                            <ChevronUp className="h-5 w-5 shrink-0 text-slate-500" />
-                                        ) : (
-                                            <ChevronDown className="h-5 w-5 shrink-0 text-slate-500" />
-                                        )}
-                                    </button>
-                                    {isOpen && (
-                                        <div className="divide-y divide-slate-100 border-t border-slate-200">
-                                            {group.items.map((schedule) => (
-                                                <div key={schedule.id} className="grid gap-3 p-4 md:grid-cols-[140px_minmax(0,1fr)_180px_120px] md:items-center">
-                                                    <div className="text-sm font-semibold text-blue-700">{timeLabel(schedule.start_time)} - {timeLabel(schedule.end_time)}</div>
-                                                    <div>
-                                                        <p className="font-semibold text-slate-900">{schedule.subject?.name || '-'}</p>
-                                                        <p className="mt-0.5 text-xs text-slate-500">{schedule.subject?.code || 'Mata pelajaran'}</p>
-                                                    </div>
-                                                    <div className="text-sm text-slate-600">{schedule.teacher?.name || '-'}</div>
-                                                    <div className="text-sm text-slate-500">{schedule.room || '-'}</div>
+                        {currentDaySchedules.length === 0 ? (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm max-w-xl mx-auto space-y-3.5">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                                    <CalendarDays className="h-8 w-8 text-slate-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-800 text-base">Tidak ada jadwal pelajaran</h3>
+                                    <p className="mt-1.5 text-xs text-slate-500 leading-relaxed font-medium">
+                                        {selectedDay === 'Sabtu' || selectedDay === 'Minggu'
+                                            ? "Selamat berlibur! Waktunya istirahat sejenak dan menikmati akhir pekan dengan santai. ☕✨"
+                                            : "Jadwal untuk hari ini kosong atau belum terisi."}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {currentDaySchedules.map((schedule, index) => {
+                                    // Custom border colors for visual grouping
+                                    const borderColors = [
+                                        'border-l-blue-500',
+                                        'border-l-emerald-500',
+                                        'border-l-purple-500',
+                                        'border-l-amber-500',
+                                        'border-l-rose-500',
+                                        'border-l-indigo-500',
+                                    ];
+                                    const colorClass = borderColors[index % borderColors.length];
+
+                                    return (
+                                        <div
+                                            key={schedule.id}
+                                            className={cn(
+                                                "bg-white rounded-2xl border border-slate-200 shadow-sm p-5 border-l-4 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5 flex flex-col justify-between gap-4",
+                                                colorClass
+                                            )}
+                                        >
+                                            <div className="space-y-2.5">
+                                                {/* Header info */}
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                        {timeLabel(schedule.start_time)} - {timeLabel(schedule.end_time)}
+                                                    </span>
+                                                    {schedule.subject?.code && (
+                                                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                                                            {schedule.subject.code}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            ))}
+
+                                                {/* Title */}
+                                                <div>
+                                                    <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                                                        {schedule.subject?.name || '-'}
+                                                    </h3>
+                                                </div>
+                                            </div>
+
+                                            {/* Details Info footer */}
+                                            <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3 text-xs">
+                                                <div className="flex items-center gap-2 text-slate-600 font-medium min-w-0">
+                                                    <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                                        <User className="w-4 h-4 text-slate-500" />
+                                                    </div>
+                                                    <span className="truncate" title={schedule.teacher?.name}>
+                                                        {schedule.teacher?.name || 'Tidak ada guru'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-slate-600 font-medium min-w-0">
+                                                    <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                                        <MapPin className="w-4 h-4 text-slate-500" />
+                                                    </div>
+                                                    <span className="truncate" title={schedule.room}>
+                                                        Ruang: {schedule.room || '-'}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
-                                </section>
-                            );
-                        })}
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
