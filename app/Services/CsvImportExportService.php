@@ -485,14 +485,18 @@ class CsvImportExportService
     {
         [$filename, $headers] = match ($type) {
             'siswa' => ['template-import-siswa.csv', [
-                'nik', 'nisn', 'name', 'gender', 'birth_date', 'phone', 'address', 'school_class_id', 'class_name',
-                'religion', 'birth_place', 'address_street', 'address_village', 'address_district',
-                'address_province', 'address_city', 'father_name', 'father_education', 'father_occupation',
-                'mother_name', 'mother_education', 'mother_occupation', 'parent_address', 'parent_province',
-                'parent_city', 'postal_code', 'parent_phone', 'previous_school'
+                'nik', 'nisn', 'nama', 'jenis_kelamin', 'tanggal_lahir', 'no_hp', 'alamat', 'nama_kelas',
+                'agama', 'tempat_lahir', 'jalan', 'desa', 'kecamatan', 'provinsi', 'kota',
+                'nama_ayah', 'pendidikan_ayah', 'pekerjaan_ayah', 'nama_ibu', 'pendidikan_ibu', 'pekerjaan_ibu',
+                'alamat_orang_tua', 'provinsi_orang_tua', 'kota_orang_tua', 'kode_pos', 'no_hp_orang_tua', 'sekolah_asal',
             ]],
-            'guru' => ['template-import-guru.csv', ['nip', 'nik', 'name', 'birth_place', 'birth_date', 'gender', 'religion', 'employment_status', 'position', 'join_date', 'last_education', 'major', 'university', 'phone', 'address']],
-            'jadwal' => ['template-import-jadwal.csv', ['nip_guru', 'nama_mapel', 'nama_kelas', 'hari', 'jam_mulai', 'jam_selesai', 'ruangan']],
+            'guru' => ['template-import-guru.csv', [
+                'nip', 'nik', 'nama', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'agama',
+                'status_kepegawaian', 'jabatan', 'tanggal_masuk', 'pendidikan_terakhir', 'jurusan', 'universitas', 'no_hp', 'alamat',
+            ]],
+            'jadwal' => ['template-import-jadwal.csv', [
+                'nip_guru', 'nama_mapel', 'nama_kelas', 'hari', 'jam_mulai', 'jam_selesai', 'ruangan',
+            ]],
             default => abort(404, 'Template import tidak ditemukan.'),
         };
 

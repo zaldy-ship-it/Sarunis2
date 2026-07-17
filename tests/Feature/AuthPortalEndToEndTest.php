@@ -196,6 +196,25 @@ class AuthPortalEndToEndTest extends TestCase
         $this->assertContains('siswa', $studentUser->roles);
     }
 
+    public function test_admin_can_download_import_templates_for_each_dataset(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $siswa = $this->get('/api/v1/admin/import/template/siswa')->assertOk()->streamedContent();
+        $this->assertStringContainsString('nama', $siswa);
+        $this->assertStringContainsString('nama_kelas', $siswa);
+        $this->assertStringContainsString('no_hp_orang_tua', $siswa);
+
+        $guru = $this->get('/api/v1/admin/import/template/guru')->assertOk()->streamedContent();
+        $this->assertStringContainsString('nama', $guru);
+        $this->assertStringContainsString('status_kepegawaian', $guru);
+        $this->assertStringContainsString('no_hp', $guru);
+
+        $jadwal = $this->get('/api/v1/admin/import/template/jadwal')->assertOk()->streamedContent();
+        $this->assertStringContainsString('nip_guru', $jadwal);
+        $this->assertStringContainsString('nama_mapel', $jadwal);
+        $this->assertStringContainsString('jam_mulai', $jadwal);
+    }
     public function test_admin_can_import_guru_with_indonesian_csv_headers(): void
     {
         $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
