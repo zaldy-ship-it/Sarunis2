@@ -55,7 +55,55 @@ interface HomeroomDashboardData {
     announcements: { id: number; title: string; content: string; created_at: string; author_name?: string }[];
     activeAcademicYear: string;
     activeSemester: string;
+    teacherSubjectAttendanceHadir?: {
+        id: number;
+        subject_name: string;
+        class_name: string;
+        total_hadir: number;
+    }[];
 }
+
+const AnimatedSubjectAttendanceCard = ({ data = [] }: { data?: any[] }) => {
+    const [index, setIndex] = useState(0);
+    const [fade, setFade] = useState(true);
+
+    useEffect(() => {
+        if (data.length <= 1) return;
+
+        const interval = setInterval(() => {
+            setFade(false);
+            setTimeout(() => {
+                setIndex((prevIndex) => (prevIndex + 1) % data.length);
+                setFade(true);
+            }, 300); // match transition timeout
+        }, 4000); // rotate every 4 seconds
+
+        return () => clearInterval(interval);
+    }, [data]);
+
+    const current = data[index] || { subject_name: 'Belum mengajar', class_name: '-', total_hadir: 0 };
+
+    return (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                    <p className="text-xs text-slate-500 mb-1 truncate font-medium">Hadir Mapel</p>
+                    <div className={`transition-all duration-300 transform ${fade ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-1 scale-95'}`}>
+                        <p className="text-2xl font-bold text-slate-900 leading-none tracking-tight">
+                            {current.total_hadir}
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-1.5 truncate font-medium">
+                            {current.subject_name} {current.class_name !== '-' ? `(${current.class_name})` : ''}
+                        </p>
+                    </div>
+                </div>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-50">
+                    <BookOpen className="w-5 h-5 text-amber-600" />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const HomeroomDashboard = () => {
     const [loading, setLoading] = useState(true);
@@ -120,24 +168,21 @@ export const HomeroomDashboard = () => {
 
             {/* Metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                {summary.map((item) => {
+                {summary.slice(0, 3).map((item) => {
                     const iconMap: Record<string, any> = {
                         'Total Siswa': GraduationCap,
                         'Hadir': CheckCircle2,
                         'Tidak Hadir': AlertCircle,
-                        'Catatan Terbuka': FileText,
                     };
                     const bgMap: Record<string, string> = {
                         'Total Siswa': 'bg-blue-50',
                         'Hadir': 'bg-emerald-50',
                         'Tidak Hadir': 'bg-red-50',
-                        'Catatan Terbuka': 'bg-amber-50',
                     };
                     const colorMap: Record<string, string> = {
                         'Total Siswa': 'text-blue-600',
                         'Hadir': 'text-emerald-600',
                         'Tidak Hadir': 'text-red-600',
-                        'Catatan Terbuka': 'text-amber-600',
                     };
                     const Icon = iconMap[item.label] || BookOpen;
                     return (
@@ -152,6 +197,7 @@ export const HomeroomDashboard = () => {
                         />
                     );
                 })}
+                <AnimatedSubjectAttendanceCard data={data.teacherSubjectAttendanceHadir || []} />
             </div>
 
             {/* Split Layout */}
@@ -206,21 +252,6 @@ export const HomeroomDashboard = () => {
                             )}
                         </Crd>
                     </div>
-
-                    {/* Checklist */}
-                    <Crd className="bg-purple-50/50 border-purple-200">
-                        <h4 className="text-xs font-bold text-purple-800 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-purple-700" /> Checklist Wali Kelas
-                        </h4>
-                        <ul className="space-y-2">
-                            {checklist.map((item, idx) => (
-                                <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                                    <span>{item}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </Crd>
                 </div>
 
                 {/* Right Column: Widgets */}

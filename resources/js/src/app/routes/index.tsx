@@ -4,9 +4,14 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { MainLayout } from '../layouts/MainLayout';
 import { Login } from '../pages/auth/Login';
+import { ForgotPassword } from '../pages/auth/ForgotPassword';
+import { VerifyCode } from '../pages/auth/VerifyCode';
+import { ResetPassword } from '../pages/auth/ResetPassword';
 import { AdminDashboard } from '../pages/dashboard/AdminDashboard';
 import { TeacherDashboard } from '../pages/dashboard/TeacherDashboard';
 import { HomeroomDashboard } from '../pages/dashboard/HomeroomDashboard';
+import { StudentDashboard } from '../pages/dashboard/StudentDashboard';
+import { ParentDashboard } from '../pages/dashboard/ParentDashboard';
 import { UserProfile } from '../pages/profile/UserProfile';
 import { JadwalKelas } from '../pages/akademik/JadwalKelas';
 import { PengaturanAkademik } from '../pages/akademik/PengaturanAkademik';
@@ -22,6 +27,7 @@ import { ClassAttendanceRecap } from '../pages/walikelas/ClassAttendanceRecap';
 import { ClassStudents } from '../pages/walikelas/ClassStudents';
 import { StudentClassAttendance, StudentNotes, StudentSchedule, StudentSubjectAttendance } from '../pages/siswa/StudentPages';
 import { AdminRecapExport } from '../pages/absensi/AdminRecapExport';
+import { CombinedAttendanceRecap } from '../pages/absensi/CombinedAttendanceRecap';
 import { Pengumuman } from '../pages/pengumuman/Pengumuman';
 import { DataReset } from '../pages/admin/DataReset';
 import { Toaster } from 'sonner';
@@ -58,6 +64,18 @@ const router = createBrowserRouter([
             {
                 path: '/login',
                 element: <Login />,
+            },
+            {
+                path: '/forgot-password',
+                element: <ForgotPassword />,
+            },
+            {
+                path: '/verify-code',
+                element: <VerifyCode />,
+            },
+            {
+                path: '/reset-password',
+                element: <ResetPassword />,
             },
         ],
     },
@@ -123,7 +141,7 @@ const router = createBrowserRouter([
             { path: '/guru-mapel/jadwal', element: <GuruMapelJadwal /> },
             { path: '/guru-mapel/kalender', element: <Placeholder title="Kalender Akademik" /> },
             { path: '/guru-mapel/absensi/riwayat-mapel', element: <SubjectAttendanceRecap mode="history" pageTitle="Riwayat Absensi Mapel" pageDescription="Lihat catatan absensi per mata pelajaran yang diajar." /> },
-            { path: '/guru-mapel/absensi/rekap-mapel', element: <SubjectAttendanceRecap mode="recap" pageTitle="Rekap Absensi Mapel" pageDescription="Ringkas kehadiran siswa untuk mata pelajaran yang diajar." /> },
+            { path: '/guru-mapel/absensi/rekap-mapel', element: <CombinedAttendanceRecap /> },
             { path: '/guru-mapel/profil', element: <UserProfile /> },
  
             // --- WALI KELAS ROUTES ---
@@ -131,12 +149,12 @@ const router = createBrowserRouter([
             { path: '/walikelas/absensi/data-kelas', element: <ClassStudents pageTitle="Data Kelas Perwalian" pageDescription="Lihat seluruh siswa pada kelas yang menjadi tanggung jawab wali kelas." /> },
             { path: '/walikelas/absensi/input', element: <WaliKelasAbsensi /> },
             { path: '/walikelas/absensi/riwayat', element: <ClassAttendanceRecap mode="history" /> },
-            { path: '/walikelas/absensi/rekap', element: <ClassAttendanceRecap mode="recap" /> },
+            { path: '/walikelas/absensi/rekap', element: <CombinedAttendanceRecap /> },
             { path: '/walikelas/siswa', element: <ClassStudents pageTitle="Data Siswa Kelas" pageDescription="Lihat seluruh siswa pada kelas yang menjadi tanggung jawab wali kelas." /> },
             { path: '/walikelas/rapor', element: <Placeholder title="Rapor & Nilai Kelas" /> },
 
             // --- SISWA ROUTES ---
-            { path: '/siswa/dashboard', element: <StudentSchedule /> },
+            { path: '/siswa/dashboard', element: <StudentDashboard /> },
             { path: '/siswa/jadwal-pelajaran', element: <StudentSchedule /> },
             { path: '/siswa/absensi-mapel', element: <StudentSubjectAttendance /> },
             { path: '/siswa/absensi-kelas', element: <StudentClassAttendance /> },
@@ -144,7 +162,7 @@ const router = createBrowserRouter([
             { path: '/siswa/profil', element: <UserProfile /> },
 
             // --- ORANG TUA ROUTES ---
-            { path: '/orang-tua/dashboard', element: <StudentSchedule portal="orang-tua" /> },
+            { path: '/orang-tua/dashboard', element: <ParentDashboard /> },
             { path: '/orang-tua/absensi-mapel', element: <StudentSubjectAttendance portal="orang-tua" /> },
             { path: '/orang-tua/absensi-kelas', element: <StudentClassAttendance portal="orang-tua" /> },
             { path: '/orang-tua/catatan', element: <StudentNotes portal="orang-tua" /> },

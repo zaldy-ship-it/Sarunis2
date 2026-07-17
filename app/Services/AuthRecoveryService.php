@@ -11,53 +11,59 @@ use Illuminate\Validation\ValidationException;
 
 class AuthRecoveryService
 {
-    public function __construct(
-        protected AuthService $authService,
-    ) {
-    }
+    /**
+     * Nilai kolom portal untuk alur reset global (tidak dibatasi per-portal).
+     */
+    protected const PORTAL = 'global';
 
-    public function sendCode(string $email, string $portal): void
+    protected const PURPOSE = 'password_reset';
+
+    protected const MAX_ATTEMPTS = 5;
+
+    protected const CODE_TTL_MINUTES = 15;
+
+    /**
+     * Buat kode verifikasi 6 digit baru dan kirim ke email pengguna.
+     */
+    public function sendCode(string $email): void
     {
-        $user = $this->userForPortal($email, $portal);
-        $token = Str::random(64);
+        $user = $this->userByEmail($email);
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         AuthVerificationCode::query()
             ->where('email', $user->email)
-            ->where('portal', $portal)
-            ->where('purpose', 'password_reset')
+            ->where('purpose', self::PURPOSE)
             ->delete();
 
         AuthVerificationCode::query()->create([
             'email' => $user->email,
-            'portal' => $portal,
-            'purpose' => 'password_reset',
-            'code_hash' => Hash::make($token),
-            'reset_token_hash' => Hash::make($token),
-            'verified_at' => now(),
-            'expires_at' => now()->addMinutes(15),
-        ]);
-
-        $resetUrl = route('auth.page.reset-password', [
-            'portal' => $portal,
-            'email' => $user->email,
-            'token' => $token,
+            'portal' => self::PORTAL,
+            'purpose' => self::PURPOSE,
+            'code_hash' => Hash::make($code),
+            'reset_token_hash' => null,
+            'attempts' => 0,
+            'verified_at' => null,
+            'expires_at' => now()->addMinutes(self::CODE_TTL_MINUTES),
         ]);
 
         Mail::send(
             'emails.auth-recovery-code',
-            ['resetUrl' => $resetUrl, 'user' => $user],
+            ['code' => $code, 'user' => $user, 'minutes' => self::CODE_TTL_MINUTES],
             static function ($message) use ($user): void {
-                $message->to($user->email)->subject('Tautan Pengaturan Ulang Kata Sandi');
+                $message->to($user->email)->subject('Kode Verifikasi Reset Kata Sandi');
             },
         );
     }
 
-    public function verifyCode(string $email, string $portal, string $code): string
+    /**
+     * Verifikasi kode. Jika benar, terbitkan token reset (dikembalikan ke pemanggil).
+     */
+    public function verifyCode(string $email, string $code): string
     {
-        $user = $this->userForPortal($email, $portal);
-        $verification = $this->activeVerification($user->email, $portal);
+        $user = $this->userByEmail($email);
+        $verification = $this->activeVerification($user->email);
 
-        if ($verification->attempts >= 5) {
+        if ($verification->attempts >= self::MAX_ATTEMPTS) {
             throw ValidationException::withMessages([
                 'code' => ['Kode sudah terlalu sering dicoba. Kirim ulang kode baru.'],
             ]);
@@ -71,23 +77,33 @@ class AuthRecoveryService
             ]);
         }
 
-        return $code;
+        $token = Str::random(64);
+
+        $verification->forceFill([
+            'verified_at' => now(),
+            'reset_token_hash' => Hash::make($token),
+        ])->save();
+
+        return $token;
     }
 
-    public function resetPassword(string $email, string $portal, string $token, string $password): void
+    /**
+     * Setel ulang kata sandi setelah kode diverifikasi.
+     */
+    public function resetPassword(string $email, string $token, string $password): void
     {
-        $user = $this->userForPortal($email, $portal);
-        $verification = $this->activeVerification($user->email, $portal);
+        $user = $this->userByEmail($email);
+        $verification = $this->activeVerification($user->email);
 
         if ($verification->verified_at === null || $verification->reset_token_hash === null) {
             throw ValidationException::withMessages([
-                'token' => ['Kode belum diverifikasi.'],
+                'code' => ['Kode belum diverifikasi. Ulangi proses dari awal.'],
             ]);
         }
 
         if (! Hash::check($token, $verification->reset_token_hash)) {
             throw ValidationException::withMessages([
-                'token' => ['Token reset tidak valid.'],
+                'token' => ['Sesi reset tidak valid. Ulangi proses dari awal.'],
             ]);
         }
 
@@ -98,37 +114,36 @@ class AuthRecoveryService
 
         AuthVerificationCode::query()
             ->where('email', $user->email)
-            ->where('portal', $portal)
-            ->where('purpose', 'password_reset')
+            ->where('purpose', self::PURPOSE)
             ->delete();
     }
 
-    protected function userForPortal(string $email, string $portal): User
+    protected function userByEmail(string $email): User
     {
+        $email = Str::lower(trim($email));
         $user = User::query()->where('email', $email)->first();
 
-        if ($user === null || ! $this->authService->canAccessPortal($user, $portal)) {
+        if ($user === null) {
             throw ValidationException::withMessages([
-                'email' => ['Email tidak ditemukan atau tidak memiliki akses ke portal ini.'],
+                'email' => ['Email tidak terdaftar.'],
             ]);
         }
 
         return $user;
     }
 
-    protected function activeVerification(string $email, string $portal): AuthVerificationCode
+    protected function activeVerification(string $email): AuthVerificationCode
     {
         $verification = AuthVerificationCode::query()
             ->where('email', $email)
-            ->where('portal', $portal)
-            ->where('purpose', 'password_reset')
+            ->where('purpose', self::PURPOSE)
             ->where('expires_at', '>', now())
             ->latest()
             ->first();
 
         if ($verification === null) {
             throw ValidationException::withMessages([
-                'code' => ['Kode sudah kedaluwarsa atau belum dikirim.'],
+                'code' => ['Kode sudah kedaluwarsa atau belum dikirim. Kirim ulang kode baru.'],
             ]);
         }
 

@@ -51,7 +51,7 @@ interface TeacherDashboardData {
         izin: number;
         alpha: number;
         total: number;
-        hadir_percentage: number;
+        present_rate: number;
     };
     checklist: string[];
     announcements: { id: number; title: string; content: string; created_at: string; author_name?: string }[];
@@ -256,7 +256,7 @@ export const TeacherDashboard = () => {
                                     ))}
                                     <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
                                         <span className="text-slate-500 font-medium">Persentase Kehadiran</span>
-                                        <span className="font-extrabold text-emerald-600 text-sm">{attendanceSummary.hadir_percentage}%</span>
+                                        <span className="font-extrabold text-emerald-600 text-sm">{attendanceSummary.present_rate}%</span>
                                     </div>
                                 </>
                             )}

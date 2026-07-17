@@ -2321,21 +2321,42 @@ class PortalDashboardController extends Controller
         $latestAttendanceDate = $this->latestAttendanceDate($attendances);
         $latestRecords = $this->recordsForDate($attendances, $latestAttendanceDate);
         $studentIds = $students->pluck('id');
-        $openNotes = StudentNote::query()
-            ->whereIn('student_id', $studentIds)
-            ->whereNull('resolved_at')
-            ->count();
-        $followUpNotes = StudentNote::query()
-            ->whereIn('student_id', $studentIds)
-            ->whereNull('resolved_at')
-            ->whereDate('follow_up_at', '<=', now()->addWeek()->toDateString())
-            ->count();
+
         $cards = [
             ['label' => 'Total Siswa', 'value' => $students->count(), 'meta' => 'Siswa perwalian'],
             ['label' => 'Hadir', 'value' => $latestRecords->where('status', AttendanceStatus::HADIR->value)->count(), 'meta' => 'Hadir hari ini'],
             ['label' => 'Tidak Hadir', 'value' => $latestRecords->where('status', '!=', AttendanceStatus::HADIR->value)->count(), 'meta' => 'Perlu tindak lanjut'],
-            ['label' => 'Catatan Terbuka', 'value' => $openNotes, 'meta' => $followUpNotes . ' tindak lanjut dekat'],
         ];
+
+        $teacher = null;
+        if (!$isAdmin) {
+            try {
+                $teacher = $this->teacherFromRequest($request);
+            } catch (\Exception $e) {}
+        }
+
+        $teacherSubjectAttendanceHadir = [];
+        if ($teacher) {
+            $teacherSubjectAttendanceHadir = TeachingAssignment::query()
+                ->with(['subject', 'schoolClass'])
+                ->where('teacher_id', $teacher->id)
+                ->get()
+                ->map(function ($assignment) {
+                    $hadirCount = SubjectAttendance::query()
+                        ->where('teaching_assignment_id', $assignment->id)
+                        ->where('status', 'hadir')
+                        ->count();
+
+                    return [
+                        'id' => $assignment->id,
+                        'subject_name' => $assignment->subject?->name ?? 'Mapel',
+                        'class_name' => $assignment->schoolClass?->name ?? 'Kelas',
+                        'total_hadir' => $hadirCount,
+                    ];
+                })
+                ->values()
+                ->all();
+        }
 
         return $this->baseDashboardData($user, 'walikelas', $payload, [
             'hero' => [
@@ -2396,6 +2417,7 @@ class PortalDashboardController extends Controller
                 'Catat siswa yang perlu dihubungi orang tua.',
                 'Pastikan data kelas perwalian tetap mutakhir.',
             ],
+            'teacherSubjectAttendanceHadir' => $teacherSubjectAttendanceHadir,
         ]);
     }
 
@@ -2428,6 +2450,23 @@ class PortalDashboardController extends Controller
                     'room' => $assignment->room ?? '-',
                 ])->all();
 
+            // Fetch subject attendance for this child
+            $subjectAttendances = SubjectAttendance::query()
+                ->with(['teachingAssignment.subject'])
+                ->where('student_id', $child->id)
+                ->get();
+
+            $subjectStats = $subjectAttendances->groupBy(fn($item) => $item->teachingAssignment?->subject_id ?? 0)->map(function ($items) {
+                $first = $items->first();
+                return [
+                    'subject_name' => $first->teachingAssignment?->subject?->name ?? 'Mapel',
+                    'hadir' => $items->where('status', 'hadir')->count(),
+                    'sakit' => $items->where('status', 'sakit')->count(),
+                    'izin' => $items->where('status', 'izin')->count(),
+                    'alpha' => $items->where('status', 'alpha')->count(),
+                ];
+            })->values()->all();
+
             $childrenData[] = [
                 'id' => $child->id,
                 'name' => $child->name,
@@ -2440,6 +2479,7 @@ class PortalDashboardController extends Controller
                     'alpha' => $attendances->where('status', AttendanceStatus::ALPHA->value)->count(),
                 ],
                 'schedules' => $schedules,
+                'subjectStats' => $subjectStats,
                 'notes' => $child->notes->map(fn(StudentNote $note): array => [
                     'title' => $note->title,
                     'note' => $note->note,
@@ -2508,6 +2548,25 @@ class PortalDashboardController extends Controller
             ]);
         }
 
+        $subjectStats = [];
+        if (!$isAdmin && $student) {
+            $subjectAttendances = SubjectAttendance::query()
+                ->with(['teachingAssignment.subject'])
+                ->where('student_id', $student->id)
+                ->get();
+
+            $subjectStats = $subjectAttendances->groupBy(fn($item) => $item->teachingAssignment?->subject_id ?? 0)->map(function ($items) {
+                $first = $items->first();
+                return [
+                    'subject_name' => $first->teachingAssignment?->subject?->name ?? 'Mapel',
+                    'hadir' => $items->where('status', 'hadir')->count(),
+                    'sakit' => $items->where('status', 'sakit')->count(),
+                    'izin' => $items->where('status', 'izin')->count(),
+                    'alpha' => $items->where('status', 'alpha')->count(),
+                ];
+            })->values()->all();
+        }
+
         return $this->baseDashboardData($user, 'siswa', $payload, [
             'hero' => [
                 'title' => 'Hai Siswa!',
@@ -2526,6 +2585,7 @@ class PortalDashboardController extends Controller
                 'status' => $this->scheduleStatus($assignment),
             ])->all(),
             'attendanceRows' => $attendanceRows,
+            'subjectStats' => $subjectStats,
             'checklist' => [
                 'Periksa jadwal pelajaran sebelum masuk kelas.',
                 'Pastikan status kehadiranmu sudah tercatat benar.',

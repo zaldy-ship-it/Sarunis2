@@ -3,11 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Services\AuthRecoveryService;
-use App\Services\AuthService;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class AuthRecoveryController extends Controller
 {
@@ -16,27 +15,27 @@ class AuthRecoveryController extends Controller
     ) {
     }
 
-    public function sendCode(Request $request): RedirectResponse
+    public function sendCode(Request $request): JsonResponse
     {
+        $this->normalizeEmail($request);
+
         $payload = $request->validate([
-            'portal' => ['required', 'string', Rule::in(array_keys(AuthService::portalMap()))],
             'email' => ['required', 'email'],
         ]);
 
-        $this->authRecoveryService->sendCode($payload['email'], $payload['portal']);
+        $this->authRecoveryService->sendCode($payload['email']);
 
-        return redirect()
-            ->route('auth.page.verify-email', [
-                'portal' => $payload['portal'],
-                'email' => $payload['email'],
-            ])
-            ->with('status', 'Tautan pengaturan ulang kata sandi telah dikirim ke email Anda.');
+        return response()->json([
+            'message' => 'Kode verifikasi telah dikirim ke email Anda.',
+            'data' => ['email' => $payload['email']],
+        ]);
     }
 
-    public function verifyCode(Request $request): RedirectResponse
+    public function verifyCode(Request $request): JsonResponse
     {
+        $this->normalizeEmail($request);
+
         $payload = $request->validate([
-            'portal' => ['required', 'string', Rule::in(array_keys(AuthService::portalMap()))],
             'email' => ['required', 'email'],
             'code' => ['required'],
         ]);
@@ -44,40 +43,52 @@ class AuthRecoveryController extends Controller
         $code = is_array($payload['code'])
             ? implode('', $payload['code'])
             : (string) $payload['code'];
+        $code = trim($code);
+
+        if (! preg_match('/^\d{6}$/', $code)) {
+            throw ValidationException::withMessages([
+                'code' => ['Masukkan 6 digit kode verifikasi.'],
+            ]);
+        }
 
         $token = $this->authRecoveryService->verifyCode(
             $payload['email'],
-            $payload['portal'],
-            strtoupper(trim($code)),
+            $code,
         );
 
-        return redirect()->route('auth.page.reset-password', [
-            'portal' => $payload['portal'],
-            'email' => $payload['email'],
-            'token' => $token,
+        return response()->json([
+            'message' => 'Kode berhasil diverifikasi.',
+            'data' => ['reset_token' => $token],
         ]);
     }
 
-    public function resetPassword(Request $request): RedirectResponse
+    public function resetPassword(Request $request): JsonResponse
     {
+        $this->normalizeEmail($request);
+
         $payload = $request->validate([
-            'portal' => ['required', 'string', Rule::in(array_keys(AuthService::portalMap()))],
             'email' => ['required', 'email'],
             'token' => ['required', 'string'],
-            'password' => ['required', 'string', Password::min(8)->letters()->numbers(), 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
         $this->authRecoveryService->resetPassword(
             $payload['email'],
-            $payload['portal'],
             $payload['token'],
             $payload['password'],
         );
 
-        return redirect()->route('auth.page.login', [
-            'portal' => $payload['portal'],
-            'email' => $payload['email'],
-            'reset' => 'success',
+        return response()->json([
+            'message' => 'Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.',
         ]);
+    }
+
+    protected function normalizeEmail(Request $request): void
+    {
+        if ($request->has('email')) {
+            $request->merge([
+                'email' => Str::lower(trim((string) $request->input('email'))),
+            ]);
+        }
     }
 }

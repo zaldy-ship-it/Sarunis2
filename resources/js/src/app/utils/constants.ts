@@ -149,7 +149,7 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
                 id: "teacher-absensi", label: "Absensi", icon: CheckSquare,
                 subItems: [
                     { id: "teacher-absensi-riwayat-mapel", label: "Riwayat Absensi Mapel", path: "/guru-mapel/absensi/riwayat-mapel" },
-                    { id: "teacher-absensi-rekap-mapel", label: "Rekap Absensi Mapel", path: "/guru-mapel/absensi/rekap-mapel" },
+                    { id: "teacher-absensi-rekap-mapel", label: "Rekap Absensi", path: "/guru-mapel/absensi/rekap-mapel" },
                 ]
             },
         ]
@@ -182,7 +182,7 @@ export const WALIKELAS_NAV_GROUPS: NavGroup[] = [
                     { id: "walikelas-absensi-data-kelas", label: "Lihat Data Kelas", path: "/walikelas/absensi/data-kelas" },
                     { id: "walikelas-absensi-input", label: "Input Absen Kelas", path: "/walikelas/absensi/input" },
                     { id: "walikelas-absensi-riwayat", label: "Riwayat Absensi", path: "/walikelas/absensi/riwayat" },
-                    { id: "walikelas-absensi-rekap", label: "Rekap Absen Kelas", path: "/walikelas/absensi/rekap" },
+                    { id: "walikelas-absensi-rekap", label: "Rekap Absensi", path: "/walikelas/absensi/rekap" },
                 ]
             },
         ]
@@ -194,6 +194,7 @@ export const STUDENT_NAV_GROUPS: NavGroup[] = [
     {
         group: "Siswa",
         items: [
+            { id: "student-dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/siswa/dashboard" },
             { id: "student-schedule", label: "Jadwal Pelajaran", icon: CalendarDays, path: "/siswa/jadwal-pelajaran" },
             { id: "student-subject-attendance", label: "Absensi Mapel", icon: BookOpen, path: "/siswa/absensi-mapel" },
             { id: "student-class-attendance", label: "Absensi Kelas", icon: CheckSquare, path: "/siswa/absensi-kelas" },
@@ -228,6 +229,10 @@ const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities
         if (!subItems) return subItems;
 
         return subItems.filter((item) => {
+            if (item.id === 'teacher-absensi-rekap-mapel' && hasHomeroomClass) {
+                return false;
+            }
+
             if (teachingOnlySubItems.has(item.id)) {
                 return hasTeachingSchedule !== false;
             }

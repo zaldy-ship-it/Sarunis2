@@ -83,6 +83,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/auth/login/{portal}', [AuthController::class, 'portalLogin'])->middleware('throttle:login');
 
+    // Alur lupa kata sandi (publik): kirim kode -> verifikasi kode -> reset kata sandi.
+    Route::post('/auth/forgot-password', [AuthRecoveryController::class, 'sendCode'])->middleware('throttle:auth-recovery');
+    Route::post('/auth/verify-code', [AuthRecoveryController::class, 'verifyCode'])->middleware('throttle:auth-recovery');
+    Route::post('/auth/reset-password', [AuthRecoveryController::class, 'resetPassword'])->middleware('throttle:auth-recovery');
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);

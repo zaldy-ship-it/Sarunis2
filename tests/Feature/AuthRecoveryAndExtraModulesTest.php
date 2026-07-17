@@ -65,6 +65,56 @@ class AuthRecoveryAndExtraModulesTest extends TestCase
         $this->assertTrue(Hash::check('Passwordbaru1', $admin->password));
     }
 
+    public function test_api_password_recovery_flow_uses_email_code_and_reset_token(): void
+    {
+        Mail::fake();
+
+        $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => ' ADMIN@SARUNIS.TEST ',
+        ])->assertOk()
+            ->assertJsonPath('data.email', 'admin@sarunis.test');
+
+        $this->assertDatabaseHas('auth_verification_codes', [
+            'email' => 'admin@sarunis.test',
+            'portal' => 'global',
+            'purpose' => 'password_reset',
+        ]);
+
+        AuthVerificationCode::query()
+            ->where('email', 'admin@sarunis.test')
+            ->where('purpose', 'password_reset')
+            ->latest()
+            ->firstOrFail()
+            ->forceFill([
+                'code_hash' => Hash::make('123456'),
+                'expires_at' => now()->addMinutes(15),
+            ])->save();
+
+        $verifyResponse = $this->postJson('/api/v1/auth/verify-code', [
+            'email' => 'admin@sarunis.test',
+            'code' => '123456',
+        ])->assertOk()
+            ->assertJsonPath('message', 'Kode berhasil diverifikasi.');
+
+        $token = $verifyResponse->json('data.reset_token');
+        $this->assertNotEmpty($token);
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'email' => 'admin@sarunis.test',
+            'token' => $token,
+            'password' => 'Passwordbaru1',
+            'password_confirmation' => 'Passwordbaru1',
+        ])->assertOk()
+            ->assertJsonPath('message', 'Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.');
+
+        $admin = User::query()->where('email', 'admin@sarunis.test')->firstOrFail();
+        $this->assertTrue(Hash::check('Passwordbaru1', $admin->password));
+        $this->assertDatabaseMissing('auth_verification_codes', [
+            'email' => 'admin@sarunis.test',
+            'purpose' => 'password_reset',
+        ]);
+    }
+
     public function test_admin_can_manage_users_settings_and_student_notes(): void
     {
         $admin = User::query()->where('email', 'admin@sarunis.test')->firstOrFail();
@@ -435,3 +485,4 @@ class AuthRecoveryAndExtraModulesTest extends TestCase
             ->assertStatus(422);
     }
 }
+
