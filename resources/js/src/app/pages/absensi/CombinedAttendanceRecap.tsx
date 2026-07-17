@@ -216,9 +216,21 @@ export const CombinedAttendanceRecap = () => {
             window.URL.revokeObjectURL(downloadUrl);
 
             toast.success('Unduhan berhasil!', { id: 'download-toast' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Download error:', error);
-            toast.error('Gagal mengunduh data absensi.', { id: 'download-toast' });
+            let message = error.response?.data?.message || 'Gagal mengunduh data absensi.';
+
+            if (error.response?.data instanceof Blob) {
+                try {
+                    const text = await error.response.data.text();
+                    const parsed = JSON.parse(text);
+                    message = parsed.message || message;
+                } catch {
+                    // Keep generic message when the server returns an HTML error page.
+                }
+            }
+
+            toast.error(message, { id: 'download-toast' });
         }
     };
 
