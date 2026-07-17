@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Save, RefreshCw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
@@ -12,16 +12,50 @@ interface Setting {
     description: string;
 }
 
+const settingMeta: Record<string, { label: string; type: string; description: string }> = {
+    academic_year: {
+        label: 'Tahun Ajaran Aktif',
+        type: 'text',
+        description: 'Tahun ajaran default untuk data akademik.',
+    },
+    active_semester: {
+        label: 'Semester Aktif',
+        type: 'select',
+        description: 'Semester aktif untuk kalender akademik dan agenda dashboard.',
+    },
+    school_name: {
+        label: 'Nama Sekolah',
+        type: 'text',
+        description: 'Nama sekolah yang tampil di portal dan laporan.',
+    },
+    school_start_date: {
+        label: 'Tanggal Awal Masuk Sekolah',
+        type: 'date',
+        description: 'Tanggal pertama awal masuk sekolah / mulai KBM semester aktif.',
+    },
+    school_end_date: {
+        label: 'Tanggal Akhir Masuk Sekolah',
+        type: 'date',
+        description: 'Tanggal akhir masuk sekolah / akhir KBM semester aktif.',
+    },
+    school_saturday_enabled: {
+        label: 'Sabtu Masuk',
+        type: 'boolean',
+        description: 'Tentukan apakah hari Sabtu dihitung sebagai pertemuan KBM.',
+    },
+};
+
 export const PengaturanAkademik = () => {
     const [settings, setSettings] = useState<Setting[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    // Local form state
     const [academicYear, setAcademicYear] = useState('');
     const [activeSemester, setActiveSemester] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [saturdayEnabled, setSaturdayEnabled] = useState(true);
 
     useEffect(() => {
         fetchSettings();
@@ -33,16 +67,19 @@ export const PengaturanAkademik = () => {
             const data = response.data.data as Setting[];
             setSettings(data);
 
-            // Populate states
             const yearSetting = data.find(s => s.key === 'academic_year');
             const semSetting = data.find(s => s.key === 'active_semester');
             const nameSetting = data.find(s => s.key === 'school_name');
-            const dateSetting = data.find(s => s.key === 'school_start_date');
+            const startSetting = data.find(s => s.key === 'school_start_date');
+            const endSetting = data.find(s => s.key === 'school_end_date');
+            const saturdaySetting = data.find(s => s.key === 'school_saturday_enabled');
 
             if (yearSetting) setAcademicYear(yearSetting.value);
             if (semSetting) setActiveSemester(semSetting.value);
             if (nameSetting) setSchoolName(nameSetting.value);
-            if (dateSetting) setStartDate(dateSetting.value);
+            if (startSetting) setStartDate(startSetting.value);
+            if (endSetting) setEndDate(endSetting.value);
+            if (saturdaySetting) setSaturdayEnabled(['1', 'true', 'yes', 'on'].includes(String(saturdaySetting.value).toLowerCase()));
         } catch (error) {
             toast.error('Gagal mengambil data pengaturan');
         } finally {
@@ -52,43 +89,38 @@ export const PengaturanAkademik = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (startDate && endDate && endDate < startDate) {
+            toast.error('Akhir KBM tidak boleh lebih awal dari awal KBM.');
+            return;
+        }
+
         setSaving(true);
 
         try {
             const updates = [
-                { key: 'academic_year',    value: academicYear    },
-                { key: 'active_semester',  value: activeSemester  },
-                { key: 'school_name',      value: schoolName      },
-                { key: 'school_start_date', value: startDate      },
+                { key: 'academic_year', value: academicYear },
+                { key: 'active_semester', value: activeSemester },
+                { key: 'school_name', value: schoolName },
+                { key: 'school_start_date', value: startDate },
+                { key: 'school_end_date', value: endDate },
+                { key: 'school_saturday_enabled', value: saturdayEnabled ? '1' : '0' },
             ];
 
             for (const item of updates) {
                 const settingObj = settings.find(s => s.key === item.key);
                 if (settingObj) {
-                    // Gunakan endpoint PATCH /value agar tidak perlu kirim semua field
                     await api.patch(`/admin/setting/${settingObj.id}/value`, {
                         value: item.value,
                     });
-                } else if (item.value) {
-                    // Buat setting baru jika belum ada
-                    const labelMap: Record<string, string> = {
-                        academic_year:    'Tahun Ajaran Aktif',
-                        active_semester:  'Semester Aktif',
-                        school_name:      'Nama Sekolah',
-                        school_start_date:'Tanggal Masuk Sekolah',
-                    };
-                    const typeMap: Record<string, string> = {
-                        academic_year:    'text',
-                        active_semester:  'select',
-                        school_name:      'text',
-                        school_start_date:'date',
-                    };
+                } else if (item.value !== '') {
+                    const meta = settingMeta[item.key];
                     await api.post('/admin/setting', {
-                        key:         item.key,
-                        label:       labelMap[item.key] ?? item.key,
-                        value:       item.value,
-                        type:        typeMap[item.key] ?? 'text',
-                        description: '',
+                        key: item.key,
+                        label: meta?.label ?? item.key,
+                        value: item.value,
+                        type: meta?.type ?? 'text',
+                        description: meta?.description ?? '',
                     });
                 }
             }
@@ -113,10 +145,10 @@ export const PengaturanAkademik = () => {
     }
 
     return (
-        <div className="p-6 max-w-2xl mx-auto">
+        <div className="p-6 max-w-3xl mx-auto">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-slate-800">Pengaturan Akademik</h1>
-                <p className="text-sm text-slate-500 mt-1">Konfigurasi tahun ajaran, semester aktif, dan informasi sekolah.</p>
+                <p className="text-sm text-slate-500 mt-1">Konfigurasi tahun ajaran, semester aktif, rentang KBM, dan informasi sekolah.</p>
             </div>
 
             <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -134,7 +166,7 @@ export const PengaturanAkademik = () => {
                         <p className="text-xs text-slate-400 mt-1">Nama sekolah yang tampil di portal dan laporan.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tahun Ajaran Aktif</label>
                             <input
@@ -145,7 +177,7 @@ export const PengaturanAkademik = () => {
                                 placeholder="2025/2026"
                                 required
                             />
-                            <p className="text-xs text-slate-400 mt-1">Format: YYYY/YYYY (Misal: 2025/2026)</p>
+                            <p className="text-xs text-slate-400 mt-1">Format: YYYY/YYYY, misalnya 2025/2026.</p>
                         </div>
 
                         <div>
@@ -163,22 +195,50 @@ export const PengaturanAkademik = () => {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mulai Masuk Sekolah (Awal KBM)</label>
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                            required
-                        />
-                        <p className="text-xs text-slate-400 mt-1">Digunakan sebagai patokan awal absensi dan agenda akademik.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mulai Masuk Sekolah (Awal KBM)</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                required
+                            />
+                            <p className="text-xs text-slate-400 mt-1">Tanggal ini dihitung sebagai Pertemuan 1 jika masuk hari efektif.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Akhir Masuk Sekolah (Akhir KBM)</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                min={startDate || undefined}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full px-3.5 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                required
+                            />
+                            <p className="text-xs text-slate-400 mt-1">Pertemuan dihitung sampai tanggal ini.</p>
+                        </div>
                     </div>
+
+                    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 cursor-pointer hover:border-blue-200 hover:bg-blue-50/40 transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={saturdayEnabled}
+                            onChange={(e) => setSaturdayEnabled(e.target.checked)}
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>
+                            <span className="block text-sm font-semibold text-slate-800">Sabtu masuk?</span>
+                            <span className="mt-1 block text-xs text-slate-500">Jika aktif, hari Sabtu ikut dihitung sebagai pertemuan. Jika tidak aktif, Sabtu dilewati seperti hari Minggu.</span>
+                        </span>
+                    </label>
 
                     <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex gap-3 text-blue-800 text-sm">
                         <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                         <div>
-                            <span className="font-semibold">Perhatian:</span> Mengubah tahun ajaran atau semester aktif akan mempengaruhi data absensi baru dan laporan jadwal pelajaran yang diakses oleh Guru dan Siswa. Pastikan data master pada tahun ajaran baru sudah diinputkan.
+                            <span className="font-semibold">Perhatian:</span> Mengubah rentang KBM akan mengubah daftar pertemuan yang muncul pada absensi kelas. Pastikan tanggal awal, tanggal akhir, dan aturan Sabtu sudah sesuai kalender sekolah.
                         </div>
                     </div>
                 </div>

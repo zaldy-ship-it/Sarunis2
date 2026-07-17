@@ -196,9 +196,9 @@ export const MainLayout = () => {
     );
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+        <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
             {/* Sidebar */}
-            <div className="hidden lg:flex flex-shrink-0">{body}</div>
+            <div className="hidden lg:flex flex-shrink-0 shadow-[8px_0_24px_rgba(15,23,42,0.10)] z-20">{body}</div>
             <AnimatePresence>
                 {mobileOpen && (
                     <>
@@ -214,7 +214,7 @@ export const MainLayout = () => {
             </AnimatePresence>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-slate-50 lg:ml-6 lg:border-l lg:border-slate-200">
                 {/* Topbar */}
                 <header className="h-14 bg-white border-b border-slate-200 flex items-center px-4 gap-3 sticky top-0 z-30 flex-shrink-0">
                     <button onClick={() => setMobileOpen(true)} className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600 transition-colors">

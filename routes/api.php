@@ -110,6 +110,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/stats', [\App\Http\Controllers\Admin\DashboardController::class, 'index']);
         Route::get('/absensi/rekap', [PortalDashboardController::class, 'adminAttendanceRecap']);
         Route::get('/absensi/laporan', [PortalDashboardController::class, 'adminAttendanceReport']);
+        Route::get('/rekap-absensi-kelas', [ClassAttendanceController::class, 'index']);
+        Route::get('/rekap-absensi-mapel', [SubjectAttendanceController::class, 'index']);
         Route::get('/data-siswa', [PortalDashboardController::class, 'adminStudents']);
         Route::get('/data-guru', [PortalDashboardController::class, 'adminTeachers']);
         Route::get('/data-kelas', [PortalDashboardController::class, 'adminClasses']);

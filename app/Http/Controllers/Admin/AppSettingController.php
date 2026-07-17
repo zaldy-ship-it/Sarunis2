@@ -30,6 +30,8 @@ class AppSettingController extends Controller
 
     public function index(): JsonResponse
     {
+        $this->appSettingService->ensureDefaults();
+
         return response()->json([
             'data' => AppSetting::query()->orderBy('label')->get(),
         ]);
@@ -131,3 +133,4 @@ class AppSettingController extends Controller
         ];
     }
 }
+

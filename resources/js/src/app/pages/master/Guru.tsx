@@ -14,10 +14,24 @@ interface Teacher {
     religion: string | null;
     employment_status: string | null;
     position: string | null;
+    join_date: string | null;
     last_education: string | null;
+    major: string | null;
+    university: string | null;
     phone: string | null;
     address: string | null;
 }
+
+const displayDate = (value?: string | null) => {
+    if (!value) return '-';
+    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+};
+
+const firstValidationError = (error: any) => {
+    const errors = error.response?.data?.errors;
+    if (!errors) return error.response?.data?.message || 'Gagal menyimpan data';
+    return (Object.values(errors).flat()[0] as string) || 'Gagal menyimpan data';
+};
 
 export const Guru = () => {
     const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -43,7 +57,10 @@ export const Guru = () => {
     const [religion, setReligion] = useState('');
     const [employmentStatus, setEmploymentStatus] = useState('PNS');
     const [position, setPosition] = useState('');
+    const [joinDate, setJoinDate] = useState('');
     const [lastEducation, setLastEducation] = useState('');
+    const [major, setMajor] = useState('');
+    const [university, setUniversity] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [importFile, setImportFile] = useState<File | null>(null);
@@ -80,7 +97,10 @@ export const Guru = () => {
         setReligion('');
         setEmploymentStatus('PNS');
         setPosition('');
+        setJoinDate('');
         setLastEducation('');
+        setMajor('');
+        setUniversity('');
         setPhone('');
         setAddress('');
         setIsFormOpen(true);
@@ -97,7 +117,10 @@ export const Guru = () => {
         setReligion(teacher.religion || '');
         setEmploymentStatus(teacher.employment_status || 'PNS');
         setPosition(teacher.position || '');
+        setJoinDate(teacher.join_date ? teacher.join_date.slice(0, 10) : '');
         setLastEducation(teacher.last_education || '');
+        setMajor(teacher.major || '');
+        setUniversity(teacher.university || '');
         setPhone(teacher.phone || '');
         setAddress(teacher.address || '');
         setIsFormOpen(true);
@@ -105,23 +128,35 @@ export const Guru = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!nip.trim()) {
+            toast.error('NIP wajib diisi.');
+            return;
+        }
+
+        if (!name.trim()) {
+            toast.error('Nama lengkap wajib diisi.');
+            return;
+        }
+
         setSaving(true);
 
         const payload = {
-            nip,
-            nik: nik || null,
-            name,
+            nip: nip.trim(),
+            nik: nik.trim() || null,
+            name: name.trim(),
             gender,
-            birth_place: birthPlace || null,
+            birth_place: birthPlace.trim() || null,
             birth_date: birthDate || null,
-            religion: religion || null,
-            employment_status: employmentStatus || null,
-            position: position || null,
-            last_education: lastEducation || null,
-            phone: phone || null,
-            address: address || null,
+            religion: religion.trim() || null,
+            employment_status: employmentStatus.trim() || null,
+            position: position.trim() || null,
+            join_date: joinDate || null,
+            last_education: lastEducation.trim() || null,
+            major: major.trim() || null,
+            university: university.trim() || null,
+            phone: phone.trim() || null,
+            address: address.trim() || null,
         };
-
         try {
             if (editingTeacher) {
                 await api.put(`/admin/guru/${editingTeacher.id}`, payload);
@@ -133,8 +168,7 @@ export const Guru = () => {
             setIsFormOpen(false);
             fetchTeachers();
         } catch (error: any) {
-            const msg = error.response?.data?.message || 'Gagal menyimpan data';
-            toast.error(msg);
+            toast.error(firstValidationError(error));
         } finally {
             setSaving(false);
         }
@@ -228,37 +262,49 @@ export const Guru = () => {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="w-full min-w-[1280px] text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                     <th className="py-3 px-4">NIP / NIK</th>
                                     <th className="py-3 px-4">Nama Guru</th>
-                                    <th className="py-3 px-4">Gender</th>
-                                    <th className="py-3 px-4">Jabatan</th>
+                                    <th className="py-3 px-4">Lahir</th>
+                                    <th className="py-3 px-4">Gender / Agama</th>
+                                    <th className="py-3 px-4">Kepegawaian</th>
                                     <th className="py-3 px-4">Pendidikan</th>
                                     <th className="py-3 px-4">Kontak</th>
+                                    <th className="py-3 px-4">Alamat</th>
                                     <th className="py-3 px-4 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                                 {teachers.map((teacher) => (
                                     <tr key={teacher.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="py-3.5 px-4">
+                                        <td className="py-3.5 px-4 align-top">
                                             <span className="font-semibold text-slate-900 block">{teacher.nip}</span>
-                                            <span className="text-xs text-slate-400">{teacher.nik || '-'}</span>
+                                            <span className="text-xs text-slate-400">NIK {teacher.nik || '-'}</span>
                                         </td>
-                                        <td className="py-3.5 px-4 font-medium text-slate-900">{teacher.name}</td>
-                                        <td className="py-3.5 px-4">
-                                            {teacher.gender === 'L' ? 'Laki-laki' : 'Perempuan'}
+                                        <td className="py-3.5 px-4 align-top font-medium text-slate-900">{teacher.name}</td>
+                                        <td className="py-3.5 px-4 align-top text-xs">
+                                            <span className="font-medium text-slate-700 block">{teacher.birth_place || '-'}</span>
+                                            <span className="text-slate-500">{displayDate(teacher.birth_date)}</span>
                                         </td>
-                                        <td className="py-3.5 px-4">
-                                            <span className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-medium border border-slate-200">
-                                                {teacher.position || 'Guru Mapel'}
-                                            </span>
+                                        <td className="py-3.5 px-4 align-top text-xs">
+                                            <span className="font-medium text-slate-700 block">{teacher.gender === 'L' ? 'Laki-laki' : teacher.gender === 'P' ? 'Perempuan' : '-'}</span>
+                                            <span className="text-slate-500">{teacher.religion || '-'}</span>
                                         </td>
-                                        <td className="py-3.5 px-4 text-xs text-slate-500">{teacher.last_education || '-'}</td>
-                                        <td className="py-3.5 px-4 text-xs text-slate-500">{teacher.phone || '-'}</td>
-                                        <td className="py-3.5 px-4 text-right">
+                                        <td className="py-3.5 px-4 align-top text-xs">
+                                            <span className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full font-medium border border-slate-200">{teacher.employment_status || '-'}</span>
+                                            <span className="block mt-2 text-slate-600">{teacher.position || '-'}</span>
+                                            <span className="block mt-1 text-slate-400">Mulai {displayDate(teacher.join_date)}</span>
+                                        </td>
+                                        <td className="py-3.5 px-4 align-top text-xs text-slate-500">
+                                            <span className="font-medium text-slate-700 block">{teacher.last_education || '-'}</span>
+                                            <span className="block mt-1">{teacher.major || '-'}</span>
+                                            <span className="block mt-1 text-slate-400 max-w-[180px] truncate">{teacher.university || '-'}</span>
+                                        </td>
+                                        <td className="py-3.5 px-4 align-top text-xs text-slate-500">{teacher.phone || '-'}</td>
+                                        <td className="py-3.5 px-4 align-top text-xs text-slate-500 max-w-xs truncate">{teacher.address || '-'}</td>
+                                        <td className="py-3.5 px-4 align-top text-right">
                                             <div className="flex justify-end gap-1.5">
                                                 <button onClick={() => handleOpenEdit(teacher)} className="p-1.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-md transition-colors">
                                                     <Edit2 className="w-4 h-4" />
@@ -355,18 +401,30 @@ export const Guru = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Status Kepegawaian</label>
-                                    <input type="text" value={employmentStatus} onChange={(e) => setEmploymentStatus(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                    <input type="text" value={employmentStatus} onChange={(e) => setEmploymentStatus(e.target.value)} placeholder="Contoh: PNS, GTY, Honorer" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Jabatan</label>
-                                    <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                    <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} placeholder="Contoh: Guru Matematika" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Tanggal Mulai Tugas</label>
+                                    <input type="date" value={joinDate} onChange={(e) => setJoinDate(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Pendidikan Terakhir</label>
-                                    <input type="text" value={lastEducation} onChange={(e) => setLastEducation(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                    <input type="text" value={lastEducation} onChange={(e) => setLastEducation(e.target.value)} placeholder="Contoh: S1" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Jurusan</label>
+                                    <input type="text" value={major} onChange={(e) => setMajor(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Universitas</label>
+                                    <input type="text" value={university} onChange={(e) => setUniversity(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Nomor HP</label>

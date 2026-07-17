@@ -16,10 +16,24 @@ class TeacherService
     ) {
     }
 
-    public function paginate(int $perPage = 15): LengthAwarePaginator
+    public function paginate(int $perPage = 15, string $search = ''): LengthAwarePaginator
     {
+        $search = trim($search);
+
         return Teacher::query()
             ->with(['user', 'homeroomClasses'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('nip', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%")
+                        ->orWhere('position', 'like', "%{$search}%")
+                        ->orWhere('employment_status', 'like', "%{$search}%")
+                        ->orWhere('last_education', 'like', "%{$search}%")
+                        ->orWhere('major', 'like', "%{$search}%")
+                        ->orWhere('university', 'like', "%{$search}%");
+                });
+            })
             ->latest()
             ->paginate($perPage);
     }

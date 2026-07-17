@@ -30,6 +30,7 @@ import { AdminRecapExport } from '../pages/absensi/AdminRecapExport';
 import { CombinedAttendanceRecap } from '../pages/absensi/CombinedAttendanceRecap';
 import { Pengumuman } from '../pages/pengumuman/Pengumuman';
 import { DataReset } from '../pages/admin/DataReset';
+import { UserAccounts } from '../pages/admin/UserAccounts';
 import { Toaster } from 'sonner';
 
 // Placeholder component for unimplemented pages
@@ -105,10 +106,10 @@ const router = createBrowserRouter([
             { path: '/jadwal/konflik', element: <Placeholder title="Deteksi Konflik" /> },
 
             // Operasional
-            { path: '/absensi/rekap', element: <AdminRecapExport mode="kehadiran" /> },
-            { path: '/absensi/guru', element: <AdminRecapExport mode="guru" /> },
-            { path: '/absensi/siswa', element: <AdminRecapExport mode="siswa" /> },
-            { path: '/absensi/statistik', element: <AdminRecapExport mode="statistik" /> },
+            { path: '/absensi/rekap', element: <AdminRecapExport /> },
+            { path: '/absensi/guru', element: <Placeholder title="Rekap Guru" /> },
+            { path: '/absensi/siswa', element: <Placeholder title="Rekap Siswa" /> },
+            { path: '/absensi/statistik', element: <Placeholder title="Statistik Kehadiran" /> },
             { path: '/pelanggaran/daftar', element: <Placeholder title="Daftar Pelanggaran" /> },
             { path: '/pelanggaran/jenis', element: <Placeholder title="Jenis Pelanggaran" /> },
             { path: '/pelanggaran/poin', element: <Placeholder title="Poin Pelanggaran" /> },
@@ -124,15 +125,11 @@ const router = createBrowserRouter([
             { path: '/laporan/pelanggaran', element: <Placeholder title="Laporan Pelanggaran" /> },
 
             // Manajemen Pengguna
-            { path: '/pengguna/akun', element: <Placeholder title="Semua Akun" /> },
-            { path: '/pengguna/role', element: <Placeholder title="Role & Permission" /> },
-            { path: '/pengguna/riwayat', element: <Placeholder title="Riwayat Login" /> },
+            { path: '/pengguna/akun', element: <UserAccounts /> },
+            { path: '/pengguna/role', element: <Navigate to="/pengguna/akun" replace /> },
+            { path: '/pengguna/riwayat', element: <Navigate to="/pengguna/akun" replace /> },
 
             // Pengaturan Admin
-            { path: '/pengaturan/profil', element: <Placeholder title="Profil Sekolah" /> },
-            { path: '/pengaturan/konfigurasi', element: <Placeholder title="Konfigurasi" /> },
-            { path: '/pengaturan/backup', element: <Placeholder title="Backup & Restore" /> },
-            { path: '/pengaturan/audit', element: <Placeholder title="Audit Log" /> },
             { path: '/pengaturan/data-reset', element: <DataReset /> },
             { path: '/admin/profil', element: <UserProfile /> },
 

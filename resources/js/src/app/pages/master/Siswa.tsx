@@ -16,9 +16,25 @@ interface Student {
     school_class?: { id: number; name: string };
     parent_user?: { id: number; name: string; email: string } | null;
     detail_siswa?: {
+        religion?: string | null;
+        birth_place?: string | null;
+        address_street?: string | null;
+        address_village?: string | null;
+        address_district?: string | null;
+        address_province?: string | null;
+        address_city?: string | null;
         father_name?: string | null;
+        father_education?: string | null;
+        father_occupation?: string | null;
         mother_name?: string | null;
+        mother_education?: string | null;
+        mother_occupation?: string | null;
+        parent_address?: string | null;
+        parent_province?: string | null;
+        parent_city?: string | null;
+        postal_code?: string | null;
         parent_phone?: string | null;
+        previous_school?: string | null;
     } | null;
 }
 
@@ -249,28 +265,36 @@ export const Siswa = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                                    <th className="py-3 px-4">NIK / NISN</th>
-                                    <th className="py-3 px-4">Nama Lengkap</th>
-                                    <th className="py-3 px-4">Gender</th>
-                                    <th className="py-3 px-4">Kelas</th>
-                                    <th className="py-3 px-4">Kontak</th>
-                                    <th className="py-3 px-4">Akun Orang Tua</th>
-                                    <th className="py-3 px-4">Alamat</th>
-                                    <th className="py-3 px-4 text-right">Aksi</th>
+                                    <th className="py-3 px-4 whitespace-nowrap sticky left-0 z-10 bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">NIK / NISN</th>
+                                    <th className="py-3 px-4 whitespace-nowrap sticky left-[120px] z-10 bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Nama Lengkap</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Gender</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Kelas</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Tempat, Tgl Lahir</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Agama</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Kontak</th>
+                                    <th className="py-3 px-4 min-w-[200px]">Alamat Lengkap</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Asal Sekolah</th>
+                                    <th className="py-3 px-4 min-w-[200px]">Data Ayah</th>
+                                    <th className="py-3 px-4 min-w-[200px]">Data Ibu</th>
+                                    <th className="py-3 px-4 min-w-[200px]">Data Wali / Kontak Ortu</th>
+                                    <th className="py-3 px-4 whitespace-nowrap">Akun Orang Tua</th>
+                                    <th className="py-3 px-4 text-right sticky right-0 z-10 bg-slate-50 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                                 {students.map((student) => (
-                                    <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="py-3.5 px-4">
+                                    <tr key={student.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="py-3.5 px-4 whitespace-nowrap sticky left-0 z-10 bg-white group-hover:bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors">
                                             <span className="font-semibold text-slate-900 block">{student.nik}</span>
                                             <span className="text-xs text-slate-400">{student.nisn || '-'}</span>
                                         </td>
-                                        <td className="py-3.5 px-4 font-medium text-slate-900">{student.name}</td>
-                                        <td className="py-3.5 px-4">
+                                        <td className="py-3.5 px-4 font-medium text-slate-900 whitespace-nowrap sticky left-[120px] z-10 bg-white group-hover:bg-slate-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors">
+                                            {student.name}
+                                        </td>
+                                        <td className="py-3.5 px-4 whitespace-nowrap">
                                             {student.gender === 'L' ? 'Laki-laki' : 'Perempuan'}
                                         </td>
-                                        <td className="py-3.5 px-4">
+                                        <td className="py-3.5 px-4 whitespace-nowrap">
                                             {student.school_class?.name ? (
                                                 <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium border border-blue-100">
                                                     {student.school_class.name}
@@ -279,8 +303,38 @@ export const Siswa = () => {
                                                 <span className="text-xs text-slate-400 font-medium">Belum Diplot</span>
                                             )}
                                         </td>
-                                        <td className="py-3.5 px-4 text-xs text-slate-500">{student.phone || '-'}</td>
+                                        <td className="py-3.5 px-4 whitespace-nowrap">
+                                            {student.detail_siswa?.birth_place || '-'}, {student.birth_date || '-'}
+                                        </td>
+                                        <td className="py-3.5 px-4 whitespace-nowrap">
+                                            {student.detail_siswa?.religion || '-'}
+                                        </td>
+                                        <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-500">
+                                            {student.phone || '-'}
+                                        </td>
                                         <td className="py-3.5 px-4 text-xs text-slate-500">
+                                            <div className="line-clamp-2" title={`${student.address || ''} ${student.detail_siswa?.address_street || ''} ${student.detail_siswa?.address_village || ''} ${student.detail_siswa?.address_district || ''} ${student.detail_siswa?.address_province || ''} ${student.detail_siswa?.address_city || ''}`}>
+                                                {[student.address, student.detail_siswa?.address_street, student.detail_siswa?.address_village, student.detail_siswa?.address_district, student.detail_siswa?.address_province, student.detail_siswa?.address_city].filter(Boolean).join(', ') || '-'}
+                                            </div>
+                                        </td>
+                                        <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-500">
+                                            {student.detail_siswa?.previous_school || '-'}
+                                        </td>
+                                        <td className="py-3.5 px-4 text-xs text-slate-500">
+                                            <span className="block font-semibold text-slate-700">{student.detail_siswa?.father_name || '-'}</span>
+                                            <span className="block">{student.detail_siswa?.father_education || '-'} • {student.detail_siswa?.father_occupation || '-'}</span>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-xs text-slate-500">
+                                            <span className="block font-semibold text-slate-700">{student.detail_siswa?.mother_name || '-'}</span>
+                                            <span className="block">{student.detail_siswa?.mother_education || '-'} • {student.detail_siswa?.mother_occupation || '-'}</span>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-xs text-slate-500">
+                                            <span className="block">HP: {student.detail_siswa?.parent_phone || '-'}</span>
+                                            <span className="block line-clamp-1" title={`${student.detail_siswa?.parent_address || ''} ${student.detail_siswa?.parent_city || ''} ${student.detail_siswa?.parent_province || ''}`}>
+                                                {[student.detail_siswa?.parent_address, student.detail_siswa?.parent_city, student.detail_siswa?.parent_province, student.detail_siswa?.postal_code].filter(Boolean).join(', ') || '-'}
+                                            </span>
+                                        </td>
+                                        <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-500">
                                             {student.parent_user ? (
                                                 <>
                                                     <span className="block font-semibold text-slate-700">{student.parent_user.name}</span>
@@ -288,8 +342,7 @@ export const Siswa = () => {
                                                 </>
                                             ) : '-'}
                                         </td>
-                                        <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs truncate">{student.address || '-'}</td>
-                                        <td className="py-3.5 px-4 text-right">
+                                        <td className="py-3.5 px-4 text-right sticky right-0 z-10 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors">
                                             <div className="flex justify-end gap-1.5">
                                                 <button onClick={() => handleOpenEdit(student)} className="p-1.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-md transition-colors">
                                                     <Edit2 className="w-4 h-4" />

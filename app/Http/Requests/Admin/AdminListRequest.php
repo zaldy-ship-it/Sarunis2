@@ -18,6 +18,7 @@ class AdminListRequest extends FormRequest
     {
         return [
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'search' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

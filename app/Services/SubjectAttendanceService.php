@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SubjectAttendance;
 use App\Models\Teacher;
 use App\Models\TeachingAssignment;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -37,17 +38,9 @@ class SubjectAttendanceService
             throw new AuthorizationException('Anda tidak berhak mengisi absensi untuk jadwal ini.');
         }
 
-        $validStudentIds = $teachingAssignment->schoolClass->students->pluck('id')->all();
-        $submittedStudentIds = collect($payload['attendances'])->pluck('student_id')->all();
-        $invalidStudentIds = array_values(array_diff($submittedStudentIds, $validStudentIds));
-
-        if ($invalidStudentIds !== []) {
-            throw ValidationException::withMessages([
-                'attendances' => ['Terdapat siswa yang tidak termasuk dalam kelas jadwal mapel ini.'],
-            ]);
-        }
-
+        $this->validateAssignmentStudents($teachingAssignment, $payload['attendances']);
         $this->ensureAttendanceCanBeRecorded($payload['attendance_date']);
+        $this->ensureAssignmentMatchesDate($teachingAssignment, $payload['attendance_date']);
         $this->persistAttendances($teacher->id, $payload);
 
         return $this->recapForTeacher($teacher, [
@@ -77,6 +70,7 @@ class SubjectAttendanceService
                 'recordedByTeacher',
                 'teachingAssignment.subject',
                 'teachingAssignment.schoolClass',
+                'teachingAssignment.teacher',
             ])
             ->whereHas('teachingAssignment', function ($query) use ($filters): void {
                 $query
@@ -153,6 +147,7 @@ class SubjectAttendanceService
 
         $this->validateAssignmentStudents($teachingAssignment, $payload['attendances']);
         $this->ensureAttendanceCanBeRecorded($payload['attendance_date']);
+        $this->ensureAssignmentMatchesDate($teachingAssignment, $payload['attendance_date']);
         $this->persistAttendances($teachingAssignment->teacher_id, $payload);
 
         return $this->recap([
@@ -168,6 +163,13 @@ class SubjectAttendanceService
     {
         $validStudentIds = $teachingAssignment->schoolClass->students->pluck('id')->all();
         $submittedStudentIds = collect($attendances)->pluck('student_id')->all();
+
+        if (count($submittedStudentIds) !== count(array_unique($submittedStudentIds))) {
+            throw ValidationException::withMessages([
+                'attendances' => ['Data absensi berisi siswa yang sama lebih dari satu kali.'],
+            ]);
+        }
+
         $invalidStudentIds = array_values(array_diff($submittedStudentIds, $validStudentIds));
 
         if ($invalidStudentIds !== []) {
@@ -188,6 +190,8 @@ class SubjectAttendanceService
             ]);
         }
 
+        $this->ensureEffectiveSchoolDate($attendanceDate);
+
         $status = $this->academicCalendarService->attendanceStatusForDate($academicYear, $semester, $attendanceDate);
 
         if (! $status['allowed']) {
@@ -195,6 +199,55 @@ class SubjectAttendanceService
                 'attendance_date' => [$status['message']],
             ]);
         }
+    }
+
+    protected function ensureEffectiveSchoolDate(string $attendanceDate): void
+    {
+        $startDateVal = $this->appSettingService->value('school_start_date', '2025-07-14') ?: '2025-07-14';
+        $endDateVal = $this->appSettingService->value('school_end_date', '2026-06-30') ?: '2026-06-30';
+        $saturdayEnabled = filter_var(
+            $this->appSettingService->value('school_saturday_enabled', '1') ?? '1',
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        $date = CarbonImmutable::parse($attendanceDate)->startOfDay();
+        $start = CarbonImmutable::parse($startDateVal)->startOfDay();
+        $end = CarbonImmutable::parse($endDateVal)->startOfDay();
+
+        if ($end->lt($start) || $date->lt($start) || $date->gt($end)) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Tanggal absensi berada di luar rentang KBM aktif.'],
+            ]);
+        }
+
+        if ($date->dayOfWeekIso === 7) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Hari Minggu tidak dihitung sebagai pertemuan KBM.'],
+            ]);
+        }
+
+        if ($date->dayOfWeekIso === 6 && ! $saturdayEnabled) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Hari Sabtu tidak dihitung sebagai pertemuan KBM pada pengaturan saat ini.'],
+            ]);
+        }
+    }
+
+    protected function ensureAssignmentMatchesDate(TeachingAssignment $teachingAssignment, string $attendanceDate): void
+    {
+        $date = CarbonImmutable::parse($attendanceDate);
+        $scheduleDay = $this->scheduleDayFromIso($date->dayOfWeekIso);
+
+        if ((int) $teachingAssignment->day_of_week !== $scheduleDay) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Tanggal absensi tidak sesuai dengan hari jadwal pelajaran ini.'],
+            ]);
+        }
+    }
+
+    protected function scheduleDayFromIso(int $dayOfWeekIso): int
+    {
+        return $dayOfWeekIso - 1;
     }
 
     /**
@@ -224,3 +277,4 @@ class SubjectAttendanceService
         });
     }
 }
+

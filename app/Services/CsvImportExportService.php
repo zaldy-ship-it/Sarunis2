@@ -234,8 +234,8 @@ class CsvImportExportService
                 ->where('code', (string) ($row['nama_mapel'] ?? ''))
                 ->orWhere('name', (string) ($row['nama_mapel'] ?? ''))
                 ->first();
-            // Resolve Class
-            $schoolClass = SchoolClass::query()->where('name', (string) ($row['nama_kelas'] ?? ''))->first();
+            // Resolve class name now; create the class only after the row passes validation.
+            $className = trim((string) ($row['nama_kelas'] ?? ''));
 
             // Resolve Day
             $dayInput = strtolower(trim((string) ($row['hari'] ?? '')));
@@ -245,7 +245,7 @@ class CsvImportExportService
                 'academic_year' => $academicYear,
                 'teacher_id' => $teacher?->id,
                 'subject_id' => $subject?->id,
-                'school_class_id' => $schoolClass?->id,
+                'class_name' => $className,
                 'day_of_week' => $dayOfWeek,
                 'start_time' => $row['jam_mulai'] ?? null,
                 'end_time' => $row['jam_selesai'] ?? null,
@@ -256,45 +256,28 @@ class CsvImportExportService
                 'academic_year' => ['required', 'string'],
                 'teacher_id' => ['required', 'integer', 'exists:teachers,id'],
                 'subject_id' => ['required', 'integer', 'exists:subjects,id'],
-                'school_class_id' => ['required', 'integer', 'exists:school_classes,id'],
+                'class_name' => ['required', 'string', 'min:2', 'max:100'],
                 'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
                 'start_time' => ['required', 'date_format:H:i'],
                 'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
                 'room' => ['nullable', 'string', 'max:50'],
             ], [
                 'teacher_id.required' => 'NIP Guru tidak valid atau tidak terdaftar.',
+                'teacher_id.exists' => "NIP Guru '{$row['nip_guru']}' tidak terdaftar dalam sistem.",
                 'subject_id.required' => 'Kode/Nama Mapel tidak valid atau tidak terdaftar.',
-                'school_class_id.required' => 'Nama Kelas tidak valid atau tidak terdaftar.',
-                'day_of_week.required' => 'Hari tidak valid.',
+                'subject_id.exists' => "Mapel '{$row['nama_mapel']}' tidak ditemukan dalam sistem.",
+                'class_name.required' => 'Nama Kelas wajib diisi.',
+                'day_of_week.required' => 'Hari tidak valid. Gunakan nama hari (Senin-Minggu) atau angka (0-6).',
+                'start_time.required' => 'Jam mulai wajib diisi (format HH:MM).',
+                'end_time.required' => 'Jam selesai wajib diisi (format HH:MM).',
+                'end_time.after' => 'Jam selesai harus setelah jam mulai.',
             ]);
 
             $validator->validate();
 
-            // Check overlap for Teacher
-            $teacherConflict = TeachingAssignment::where('teacher_id', $payload['teacher_id'])
-                ->where('academic_year', $academicYear)
-                ->where('day_of_week', $payload['day_of_week'])
-                ->where(function($q) use ($payload) {
-                    $q->whereBetween('start_time', [$payload['start_time'], $payload['end_time']])
-                      ->orWhereBetween('end_time', [$payload['start_time'], $payload['end_time']])
-                      ->orWhere(function($q2) use ($payload) {
-                          $q2->where('start_time', '<=', $payload['start_time'])
-                             ->where('end_time', '>=', $payload['end_time']);
-                      });
-                });
-
-            // Check overlap for Class
-            $classConflict = TeachingAssignment::where('school_class_id', $payload['school_class_id'])
-                ->where('academic_year', $academicYear)
-                ->where('day_of_week', $payload['day_of_week'])
-                ->where(function($q) use ($payload) {
-                    $q->whereBetween('start_time', [$payload['start_time'], $payload['end_time']])
-                      ->orWhereBetween('end_time', [$payload['start_time'], $payload['end_time']])
-                      ->orWhere(function($q2) use ($payload) {
-                          $q2->where('start_time', '<=', $payload['start_time'])
-                             ->where('end_time', '>=', $payload['end_time']);
-                      });
-                });
+            $schoolClass = $this->resolveOrCreateScheduleClass($className, $academicYear);
+            $payload['school_class_id'] = $schoolClass?->id;
+            unset($payload['class_name']);
 
             // Find if there is an exact schedule slot already
             $existing = TeachingAssignment::where('school_class_id', $payload['school_class_id'])
@@ -304,18 +287,52 @@ class CsvImportExportService
                 ->where('end_time', $payload['end_time'])
                 ->first();
 
+            // Check overlap for Teacher (either as main teacher or substitute teacher)
+            $teacherConflict = TeachingAssignment::query()
+                ->where('academic_year', $academicYear)
+                ->where('day_of_week', $payload['day_of_week'])
+                ->where('start_time', '<', $payload['end_time'])
+                ->where('end_time', '>', $payload['start_time'])
+                ->where(function ($q) use ($payload) {
+                    $q->where('teacher_id', $payload['teacher_id'])
+                      ->orWhere('substitute_teacher_id', $payload['teacher_id']);
+                });
+
+            // Check overlap for Class
+            $classConflict = TeachingAssignment::query()
+                ->where('school_class_id', $payload['school_class_id'])
+                ->where('academic_year', $academicYear)
+                ->where('day_of_week', $payload['day_of_week'])
+                ->where('start_time', '<', $payload['end_time'])
+                ->where('end_time', '>', $payload['start_time']);
+
             if ($existing) {
                 // If existing, we can update it. Conflict checks should exclude this exact record.
                 $teacherConflict = $teacherConflict->where('id', '!=', $existing->id);
                 $classConflict = $classConflict->where('id', '!=', $existing->id);
             }
 
-            if ($teacherConflict->exists()) {
-                throw new \Exception("Konflik Guru: Guru NIP {$row['nip_guru']} sudah mengajar di kelas lain pada jam tersebut.");
+            $dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+            $dayName = $dayNames[$payload['day_of_week']] ?? $payload['day_of_week'];
+
+            $conflictingTeacher = $teacherConflict->with(['subject', 'schoolClass'])->first();
+            if ($conflictingTeacher) {
+                $conflictSubject = $conflictingTeacher->subject?->name ?? '-';
+                $conflictClass = $conflictingTeacher->schoolClass?->name ?? '-';
+                $conflictTime = substr($conflictingTeacher->start_time, 0, 5) . '-' . substr($conflictingTeacher->end_time, 0, 5);
+                throw new \Exception(
+                    "⚠️ TABRAKAN GURU: Guru NIP {$row['nip_guru']} ({$teacher?->name}) sudah mengajar mapel \"{$conflictSubject}\" di kelas {$conflictClass} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 jadwal untuk guru yang sama di waktu yang bertabrakan."
+                );
             }
 
-            if ($classConflict->exists()) {
-                throw new \Exception("Konflik Kelas: Kelas {$row['nama_kelas']} sudah memiliki jadwal pelajaran lain pada jam tersebut.");
+            $conflictingClass = $classConflict->with(['subject', 'teacher'])->first();
+            if ($conflictingClass) {
+                $conflictSubject = $conflictingClass->subject?->name ?? '-';
+                $conflictTeacher = $conflictingClass->teacher?->name ?? '-';
+                $conflictTime = substr($conflictingClass->start_time, 0, 5) . '-' . substr($conflictingClass->end_time, 0, 5);
+                throw new \Exception(
+                    "⚠️ TABRAKAN KELAS: Kelas {$row['nama_kelas']} sudah memiliki jadwal mapel \"{$conflictSubject}\" oleh {$conflictTeacher} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 mapel di kelas yang sama pada waktu yang bertabrakan."
+                );
             }
 
             if ($existing) {
@@ -440,6 +457,45 @@ class CsvImportExportService
         }
 
         return null;
+    }
+
+    protected function resolveOrCreateScheduleClass(string $className, string $academicYear): ?SchoolClass
+    {
+        $className = trim($className);
+
+        if ($className === '') {
+            return null;
+        }
+
+        return SchoolClass::query()->firstOrCreate(
+            [
+                'name' => $className,
+                'academic_year' => $academicYear,
+            ],
+            [
+                'level' => $this->inferClassLevel($className),
+                'description' => 'Dibuat otomatis dari import jadwal pelajaran. Lengkapi siswa dan wali kelas pada menu Akademik > Kelas.',
+            ],
+        );
+    }
+
+    protected function inferClassLevel(string $className): string
+    {
+        $className = strtoupper(trim($className));
+
+        if (preg_match('/^(XII|XI|X|IX|VIII|VII)\b/', $className, $matches)) {
+            return $matches[1];
+        }
+
+        if (preg_match('/^(1[0-2]|[1-9])\b/', $className, $matches)) {
+            return $matches[1];
+        }
+
+        if (preg_match('/^(1[0-2]|[1-9])(?=[A-Z])/', $className, $matches)) {
+            return $matches[1];
+        }
+
+        return 'UMUM';
     }
 
     protected function studentHeaders(): array
@@ -898,3 +954,4 @@ class CsvImportExportService
         return implode('-', $parts);
     }
 }
+

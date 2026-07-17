@@ -45,14 +45,30 @@ class UserManagementController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $perPage = $request->integer('per_page', 15);
+        $perPage = min(max($request->integer('per_page', 25), 1), 1000);
+        $search = trim((string) $request->input('search', ''));
 
-        return response()->json(
-            User::query()
-                ->with(['teacherProfile', 'studentProfile'])
-                ->latest()
-                ->paginate($perPage)
-        );
+        $query = User::query()
+            ->with($this->userRelations())
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereJsonContains('roles', $search)
+                        ->orWhereHas('teacherProfile', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('nip', 'like', "%{$search}%")
+                                ->orWhere('nik', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('studentProfile', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%")
+                                ->orWhere('nisn', 'like', "%{$search}%")
+                                ->orWhere('nik', 'like', "%{$search}%");
+                        });
+                });
+            });
+
+        return response()->json($query->latest()->paginate($perPage));
     }
 
     public function store(Request $request): JsonResponse
@@ -81,14 +97,14 @@ class UserManagementController extends Controller
 
         return response()->json([
             'message' => 'Pengguna berhasil dibuat.',
-            'data' => $user->load(['teacherProfile', 'studentProfile']),
+            'data' => $user->load($this->userRelations()),
         ], 201);
     }
 
     public function show(User $pengguna): JsonResponse
     {
         return response()->json([
-            'data' => $pengguna->load(['teacherProfile', 'studentProfile']),
+            'data' => $pengguna->load($this->userRelations()),
         ]);
     }
 
@@ -125,7 +141,7 @@ class UserManagementController extends Controller
 
         return response()->json([
             'message' => 'Pengguna berhasil diperbarui.',
-            'data' => $pengguna->refresh()->load(['teacherProfile', 'studentProfile']),
+            'data' => $pengguna->refresh()->load($this->userRelations()),
         ]);
     }
 
@@ -175,7 +191,7 @@ class UserManagementController extends Controller
             'data' => [
                 ...$result,
                 'users' => User::query()
-                    ->with(['teacherProfile', 'studentProfile'])
+                    ->with($this->userRelations())
                     ->orderByDesc('created_at')
                     ->limit($result['total_created'])
                     ->get()
@@ -214,6 +230,18 @@ class UserManagementController extends Controller
                     ['label' => 'Pengumuman', 'icon' => 'announcement', 'href' => url('/admin/pengumuman'), 'active' => $activeItem === 'pengumuman'],
                 ],
             ],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function userRelations(): array
+    {
+        return [
+            'teacherProfile',
+            'studentProfile.schoolClass',
+            'parentStudents.schoolClass',
         ];
     }
 

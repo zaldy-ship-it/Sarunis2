@@ -69,29 +69,69 @@ class UpsertTeachingAssignmentRequest extends FormRequest
                 $overlapQuery->whereKeyNot($teachingAssignment->id);
             }
 
-            $teacherConflict = (clone $overlapQuery)
-                ->where('teacher_id', $this->integer('teacher_id'))
-                ->exists();
+            $teacherId = $this->integer('teacher_id');
+            $substituteTeacherId = $this->integer('substitute_teacher_id');
 
-            if ($teacherConflict) {
-                $validator->errors()->add('teacher_id', 'Guru sudah memiliki jadwal lain pada hari dan jam tersebut.');
+            $dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+            $dayName = $dayNames[$this->integer('day_of_week')] ?? $this->integer('day_of_week');
+
+            // Check if main teacher is busy (either teaching or substituting)
+            $teacherConflictRecord = (clone $overlapQuery)
+                ->where(function ($query) use ($teacherId) {
+                    $query->where('teacher_id', $teacherId)
+                          ->orWhere('substitute_teacher_id', $teacherId);
+                })
+                ->with(['subject', 'schoolClass'])
+                ->first();
+
+            if ($teacherConflictRecord) {
+                $conflictSubject = $teacherConflictRecord->subject?->name ?? '-';
+                $conflictClass = $teacherConflictRecord->schoolClass?->name ?? '-';
+                $conflictTime = substr($teacherConflictRecord->start_time, 0, 5) . '-' . substr($teacherConflictRecord->end_time, 0, 5);
+                $validator->errors()->add(
+                    'teacher_id',
+                    "⚠️ TABRAKAN JADWAL: Guru ini sudah mengajar mapel \"{$conflictSubject}\" di kelas {$conflictClass} pada hari {$dayName} jam {$conflictTime}. Satu guru tidak boleh memiliki 2 jadwal di waktu yang bertabrakan."
+                );
             }
 
-            $classConflict = (clone $overlapQuery)
-                ->where('school_class_id', $this->integer('school_class_id'))
-                ->exists();
+            // Check if substitute teacher is busy (either teaching or substituting)
+            if ($substituteTeacherId) {
+                if ($teacherId === $substituteTeacherId) {
+                    $validator->errors()->add('substitute_teacher_id', 'Guru utama dan guru pengganti tidak boleh orang yang sama.');
+                } else {
+                    $substituteConflictRecord = (clone $overlapQuery)
+                        ->where(function ($query) use ($substituteTeacherId) {
+                            $query->where('teacher_id', $substituteTeacherId)
+                                  ->orWhere('substitute_teacher_id', $substituteTeacherId);
+                        })
+                        ->with(['subject', 'schoolClass'])
+                        ->first();
 
-            if ($classConflict) {
-                $validator->errors()->add('school_class_id', 'Kelas sudah memiliki jadwal lain pada hari dan jam tersebut.');
+                    if ($substituteConflictRecord) {
+                        $conflictSubject = $substituteConflictRecord->subject?->name ?? '-';
+                        $conflictClass = $substituteConflictRecord->schoolClass?->name ?? '-';
+                        $conflictTime = substr($substituteConflictRecord->start_time, 0, 5) . '-' . substr($substituteConflictRecord->end_time, 0, 5);
+                        $validator->errors()->add(
+                            'substitute_teacher_id',
+                            "⚠️ TABRAKAN JADWAL: Guru pengganti sudah mengajar mapel \"{$conflictSubject}\" di kelas {$conflictClass} pada hari {$dayName} jam {$conflictTime}."
+                        );
+                    }
+                }
             }
 
-            $slotFilled = (clone $overlapQuery)
+            $classConflictRecord = (clone $overlapQuery)
                 ->where('school_class_id', $this->integer('school_class_id'))
-                ->where('day_of_week', $this->integer('day_of_week'))
-                ->exists();
+                ->with(['subject', 'teacher'])
+                ->first();
 
-            if ($slotFilled && !$classConflict) {
-                $validator->errors()->add('start_time', 'Kombinasi kelas, hari, dan jam sudah terisi.');
+            if ($classConflictRecord) {
+                $conflictSubject = $classConflictRecord->subject?->name ?? '-';
+                $conflictTeacher = $classConflictRecord->teacher?->name ?? '-';
+                $conflictTime = substr($classConflictRecord->start_time, 0, 5) . '-' . substr($classConflictRecord->end_time, 0, 5);
+                $validator->errors()->add(
+                    'school_class_id',
+                    "⚠️ TABRAKAN KELAS: Kelas ini sudah memiliki jadwal mapel \"{$conflictSubject}\" oleh {$conflictTeacher} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 mapel di kelas yang sama pada waktu bertabrakan."
+                );
             }
         });
     }

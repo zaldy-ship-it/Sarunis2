@@ -1,411 +1,576 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, CalendarDays, Download, FileSpreadsheet, FileText, Filter, RefreshCw, Search } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import {
+    AlertCircle, BarChart3, CalendarDays, Filter, RefreshCw, Search,
+    Download, FileSpreadsheet, Users, BookOpen, GraduationCap, CheckCircle2,
+    Clock, User, MapPin
+} from 'lucide-react';
+import { toast } from 'sonner';
 import api from '../../services/api';
 
-type PageMode = 'kehadiran' | 'guru' | 'siswa' | 'statistik';
+type AttendanceStatus = 'hadir' | 'sakit' | 'izin' | 'alpha';
+type RecapType = 'kelas' | 'mapel';
+type ViewMode = 'ringkasan' | 'pertemuan';
 
-type Option = {
+interface SchoolClass {
     id: number;
     name: string;
-    level?: string;
-    academic_year?: string;
-};
+}
 
-type Filters = {
-    dataset: string;
-    format: 'csv' | 'xls' | 'pdf';
-    type: string;
-    school_class_id: string;
-    subject_id: string;
-    teacher_id: string;
-    student_id: string;
+interface Subject {
+    id: number;
+    name: string;
+    code?: string | null;
+}
+
+interface Student {
+    id: number;
+    nik?: string | null;
+    nisn?: string | null;
+    name: string;
+}
+
+interface Teacher {
+    id: number;
+    name: string;
+}
+
+interface TeachingAssignment {
+    id: number;
+    school_class_id: number;
+    subject_id: number;
+    subject?: Subject;
+    school_class?: SchoolClass;
+    teacher?: Teacher;
+}
+
+interface ClassAttendanceRecord {
+    id: number;
+    student_id: number;
+    school_class_id: number;
     attendance_date: string;
-    date_from: string;
-    date_to: string;
-    status: string;
-    gender: string;
-    category: string;
-    employment_status: string;
-    level: string;
-    academic_year: string;
-    usage: string;
-    search: string;
-};
+    status: AttendanceStatus;
+    notes?: string | null;
+    student?: Student;
+    school_class?: SchoolClass;
+}
 
-const initialFilters: Filters = {
-    dataset: 'absensi',
-    format: 'csv',
-    type: 'gabungan',
-    school_class_id: '',
-    subject_id: '',
-    teacher_id: '',
-    student_id: '',
-    attendance_date: '',
-    date_from: '',
-    date_to: '',
-    status: '',
-    gender: '',
-    category: '',
-    employment_status: '',
-    level: '',
-    academic_year: '',
-    usage: '',
-    search: '',
-};
+interface SubjectAttendanceRecord {
+    id: number;
+    student_id: number;
+    teaching_assignment_id: number;
+    attendance_date: string;
+    status: AttendanceStatus;
+    notes?: string | null;
+    student?: Student;
+    teaching_assignment?: TeachingAssignment;
+}
 
-const datasetLabels: Record<string, string> = {
-    absensi: 'Absensi Gabungan',
-    siswa: 'Data Siswa',
-    guru: 'Data Guru',
-    kelas: 'Data Kelas',
-    mapel: 'Mata Pelajaran',
-    'catatan-siswa': 'Catatan Siswa',
-};
-
-const modeDefaults: Record<PageMode, Partial<Filters>> = {
-    kehadiran: { dataset: 'absensi', type: 'gabungan' },
-    guru: { dataset: 'guru' },
-    siswa: { dataset: 'siswa' },
-    statistik: { dataset: 'absensi', type: 'gabungan' },
-};
-
-const titles: Record<PageMode, { title: string; subtitle: string }> = {
-    kehadiran: {
-        title: 'Rekap Absen Siswa',
-        subtitle: 'Unduh data absensi siswa berdasarkan kelas, mapel, tanggal, dan status kehadiran.',
-    },
-    guru: {
-        title: 'Rekap Guru',
-        subtitle: 'Unduh data guru saja dengan filter kategori, gender, status kepegawaian, dan pencarian.',
-    },
-    siswa: {
-        title: 'Rekap Siswa',
-        subtitle: 'Unduh data siswa saja dengan filter kelas, gender, tahun ajaran, dan pencarian.',
-    },
-    statistik: {
-        title: 'Statistik Kehadiran',
-        subtitle: 'Siapkan file olahan statistik absensi untuk periode, kelas, mapel, atau status tertentu.',
-    },
-};
-
-const attendanceStatuses = [
-    { value: 'hadir', label: 'Hadir' },
-    { value: 'izin', label: 'Izin' },
-    { value: 'sakit', label: 'Sakit' },
-    { value: 'alpha', label: 'Alpha' },
+const statusOptions: Array<{ value: AttendanceStatus; label: string; className: string }> = [
+    { value: 'hadir', label: 'Hadir', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+    { value: 'sakit', label: 'Sakit', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+    { value: 'izin', label: 'Izin', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+    { value: 'alpha', label: 'Alpha', className: 'border-rose-200 bg-rose-50 text-rose-700' },
 ];
 
-const teacherCategories = [
-    { value: 'guru', label: 'Guru' },
-    { value: 'guru-mapel', label: 'Guru Mapel' },
-    { value: 'walikelas', label: 'Wali Kelas' },
-    { value: 'guru-mapel-walikelas', label: 'Guru Mapel + Wali Kelas' },
-];
+const todayString = () => new Date().toISOString().slice(0, 10);
 
-const getCollection = (payload: any): Option[] => {
-    if (Array.isArray(payload?.data?.data)) return payload.data.data;
-    if (Array.isArray(payload?.data)) return payload.data;
-    return [];
+const monthStartString = () => {
+    const date = new Date();
+    date.setDate(1);
+    return date.toISOString().slice(0, 10);
 };
 
+const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');
 const fieldClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
-export const AdminRecapExport = ({ mode }: { mode: PageMode }) => {
-    const [filters, setFilters] = useState<Filters>({ ...initialFilters, ...modeDefaults[mode] });
-    const [classes, setClasses] = useState<Option[]>([]);
-    const [subjects, setSubjects] = useState<Option[]>([]);
-    const [teachers, setTeachers] = useState<Option[]>([]);
-    const [students, setStudents] = useState<Option[]>([]);
-    const [loadingOptions, setLoadingOptions] = useState(true);
+export const AdminRecapExport = () => {
+    const [recapType, setRecapType] = useState<RecapType>('kelas');
+    const [viewMode, setViewMode] = useState<ViewMode>('ringkasan');
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+    const [query, setQuery] = useState('');
 
+    // Filters
+    const [dateFrom, setDateFrom] = useState(monthStartString());
+    const [dateTo, setDateTo] = useState(todayString());
+    const [selectedClassId, setSelectedClassId] = useState('');
+    const [selectedSubjectId, setSelectedSubjectId] = useState('');
+    const [selectedStudentId, setSelectedStudentId] = useState('');
+
+    // Options dropdowns
+    const [classes, setClasses] = useState<SchoolClass[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
+
+    // Records loaded
+    const [classRecords, setClassRecords] = useState<ClassAttendanceRecord[]>([]);
+    const [subjectRecords, setSubjectRecords] = useState<SubjectAttendanceRecord[]>([]);
+
+    // Load static option values
     useEffect(() => {
-        setFilters({ ...initialFilters, ...modeDefaults[mode] });
-    }, [mode]);
-
-    useEffect(() => {
-        let active = true;
-
-        const loadOptions = async () => {
-            setLoadingOptions(true);
+        const loadMetadata = async () => {
             try {
-                const [classRes, subjectRes, teacherRes, studentRes] = await Promise.all([
+                const [classRes, subjectRes, studentRes] = await Promise.all([
                     api.get('/admin/kelas', { params: { per_page: 500 } }),
                     api.get('/admin/mapel', { params: { per_page: 500 } }),
-                    api.get('/admin/guru', { params: { per_page: 500 } }),
                     api.get('/admin/siswa', { params: { per_page: 500 } }),
                 ]);
-
-                if (!active) return;
-
-                setClasses(getCollection(classRes));
-                setSubjects(getCollection(subjectRes));
-                setTeachers(getCollection(teacherRes));
-                setStudents(getCollection(studentRes));
-            } finally {
-                if (active) setLoadingOptions(false);
+                setClasses(classRes.data.data || []);
+                setSubjects(subjectRes.data.data || []);
+                setStudents(studentRes.data.data || []);
+            } catch (err) {
+                console.error('Failed to load filter metadata:', err);
+                toast.error('Gagal memuat pilihan filter.');
             }
         };
-
-        loadOptions();
-
-        return () => {
-            active = false;
-        };
+        loadMetadata();
     }, []);
 
-    const levels = useMemo(() => Array.from(new Set(classes.map((item) => item.level).filter(Boolean))) as string[], [classes]);
-    const academicYears = useMemo(() => Array.from(new Set(classes.map((item) => item.academic_year).filter(Boolean))) as string[], [classes]);
-    const selectedDataset = datasetLabels[filters.dataset] || 'Data';
-    const page = titles[mode];
-    const isAttendanceRecap = mode === 'kehadiran' || mode === 'statistik';
-    const isTeacherRecap = mode === 'guru';
-    const isStudentRecap = mode === 'siswa';
+    // Fetch records from database
+    const fetchRecords = useCallback(async () => {
+        setLoading(true);
+        setLoadError('');
+        try {
+            const params: Record<string, string> = {
+                date_from: dateFrom,
+                date_to: dateTo,
+            };
+            if (selectedClassId) params.school_class_id = selectedClassId;
+            if (selectedStudentId) params.student_id = selectedStudentId;
 
-    const updateFilter = (key: keyof Filters, value: string) => {
-        setFilters((current) => ({ ...current, [key]: value }));
-    };
+            if (recapType === 'kelas') {
+                const res = await api.get('/admin/rekap-absensi-kelas', { params });
+                setClassRecords(res.data.data || []);
+            } else {
+                if (selectedSubjectId) params.subject_id = selectedSubjectId;
+                const res = await api.get('/admin/rekap-absensi-mapel', { params });
+                setSubjectRecords(res.data.data || []);
+            }
+        } catch (err: any) {
+            const message = err.response?.data?.message || 'Gagal memuat rekap absensi.';
+            setLoadError(message);
+            toast.error(message);
+        } finally {
+            setLoading(false);
+        }
+    }, [recapType, dateFrom, dateTo, selectedClassId, selectedSubjectId, selectedStudentId]);
 
+    // Re-fetch when recap type is switched
+    useEffect(() => {
+        fetchRecords();
+    }, [recapType]);
+
+    // Reset filters
     const resetFilters = () => {
-        setFilters({ ...initialFilters, ...modeDefaults[mode], format: filters.format });
+        setSelectedClassId('');
+        setSelectedSubjectId('');
+        setSelectedStudentId('');
+        setDateFrom(monthStartString());
+        setDateTo(todayString());
+        setQuery('');
     };
 
-    const exportUrl = (format: Filters['format']) => {
-        const params = new URLSearchParams();
+    // Filtered records by search query
+    const filteredClassRecords = useMemo(() => {
+        const keyword = query.trim().toLowerCase();
+        if (!keyword) return classRecords;
 
-        Object.entries({ ...filters, format }).forEach(([key, value]) => {
-            if (!value || key === 'dataset' || key === 'format') return;
-            params.set(key, value);
+        return classRecords.filter(r => 
+            (r.student?.name || '').toLowerCase().includes(keyword) ||
+            (r.student?.nik || '').toLowerCase().includes(keyword) ||
+            (r.school_class?.name || '').toLowerCase().includes(keyword) ||
+            r.status.toLowerCase().includes(keyword)
+        );
+    }, [classRecords, query]);
+
+    const filteredSubjectRecords = useMemo(() => {
+        const keyword = query.trim().toLowerCase();
+        if (!keyword) return subjectRecords;
+
+        return subjectRecords.filter(r => 
+            (r.student?.name || '').toLowerCase().includes(keyword) ||
+            (r.student?.nik || '').toLowerCase().includes(keyword) ||
+            (r.teaching_assignment?.subject?.name || '').toLowerCase().includes(keyword) ||
+            (r.teaching_assignment?.school_class?.name || '').toLowerCase().includes(keyword) ||
+            r.status.toLowerCase().includes(keyword)
+        );
+    }, [subjectRecords, query]);
+
+    // Cumulative Summaries grouping
+    const classRecapRows = useMemo(() => {
+        const groups = new Map<number, ClassAttendanceRecord[]>();
+        filteredClassRecords.forEach(r => {
+            groups.set(r.student_id, [...(groups.get(r.student_id) || []), r]);
         });
 
-        const query = params.toString();
-        return `/api/v1/admin/export/${filters.dataset}/${format}${query ? `?${query}` : ''}`;
-    };
+        return Array.from(groups.values()).map(items => {
+            const first = items[0];
+            const hadir = items.filter(r => r.status === 'hadir').length;
+            const total = items.length;
 
-    const download = (format: Filters['format']) => {
-        window.open(exportUrl(format), '_blank', 'noopener,noreferrer');
+            return {
+                student: first.student,
+                className: first.school_class?.name || 'Kelas',
+                total,
+                presentRate: total > 0 ? Math.round((hadir / total) * 100) : 0,
+                summary: statusOptions.map(opt => ({
+                    ...opt,
+                    total: items.filter(r => r.status === opt.value).length
+                }))
+            };
+        }).sort((a, b) => (a.student?.name || '').localeCompare(b.student?.name || ''));
+    }, [filteredClassRecords]);
+
+    const subjectRecapRows = useMemo(() => {
+        const groups = new Map<string, SubjectAttendanceRecord[]>();
+        filteredSubjectRecords.forEach(r => {
+            const key = `${r.teaching_assignment_id}|${r.student_id}`;
+            groups.set(key, [...(groups.get(key) || []), r]);
+        });
+
+        return Array.from(groups.values()).map(items => {
+            const first = items[0];
+            const hadir = items.filter(r => r.status === 'hadir').length;
+            const total = items.length;
+
+            return {
+                student: first.student,
+                subjectName: first.teaching_assignment?.subject?.name || 'Mapel',
+                className: first.teaching_assignment?.school_class?.name || 'Kelas',
+                teacherName: first.teaching_assignment?.teacher?.name || 'Guru',
+                total,
+                presentRate: total > 0 ? Math.round((hadir / total) * 100) : 0,
+                summary: statusOptions.map(opt => ({
+                    ...opt,
+                    total: items.filter(r => r.status === opt.value).length
+                }))
+            };
+        }).sort((a, b) => {
+            const mapelCompare = a.subjectName.localeCompare(b.subjectName);
+            if (mapelCompare !== 0) return mapelCompare;
+            return (a.student?.name || '').localeCompare(b.student?.name || '');
+        });
+    }, [filteredSubjectRecords]);
+
+    // Handle export files
+    const handleExport = (format: 'csv' | 'xls') => {
+        const params = new URLSearchParams();
+        params.set('format', format);
+        if (dateFrom) params.set('date_from', dateFrom);
+        if (dateTo) params.set('date_to', dateTo);
+        if (selectedClassId) params.set('school_class_id', selectedClassId);
+        if (selectedStudentId) params.set('student_id', selectedStudentId);
+
+        let endpoint = '';
+        if (recapType === 'kelas') {
+            endpoint = `/api/v1/admin/export/absensi/${format}`;
+            params.set('type', 'kelas');
+        } else {
+            endpoint = `/api/v1/admin/export/absensi/${format}`;
+            params.set('type', 'mapel');
+            if (selectedSubjectId) params.set('subject_id', selectedSubjectId);
+        }
+
+        const url = `${endpoint}?${params.toString()}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     return (
-        <div className="min-h-full bg-slate-50 p-4 sm:p-6">
-            <div className="mx-auto max-w-7xl space-y-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-h-full bg-slate-50 px-2 py-4 sm:p-6">
+            <div className="mx-auto w-full max-w-7xl space-y-5">
+                
+                {/* Header */}
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">{page.title}</h1>
-                        <p className="mt-1 text-sm text-slate-500">{page.subtitle}</p>
+                        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Rekap Absensi (Admin)</h1>
+                        <p className="mt-1 text-sm text-slate-500 font-medium">Rekapitulasi data kehadiran siswa per pertemuan & perorangan langsung dari database.</p>
                     </div>
-
-                    <div className="flex flex-wrap gap-2">
-                        <button onClick={() => download('csv')} className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                        <button
+                            onClick={fetchRecords}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
+                        >
+                            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                            Muat Ulang
+                        </button>
+                        <button
+                            onClick={() => handleExport('csv')}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-transparent bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60 cursor-pointer"
+                        >
                             <Download className="h-4 w-4" />
                             CSV
                         </button>
-                        <button onClick={() => download('xls')} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        <button
+                            onClick={() => handleExport('xls')}
+                            disabled={loading}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-transparent bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
+                        >
                             <FileSpreadsheet className="h-4 w-4" />
-                            Excel
-                        </button>
-                        <button onClick={() => download('pdf')} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
-                            <FileText className="h-4 w-4" />
-                            Cetak
+                            Excel (XLS)
                         </button>
                     </div>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                <Filter className="h-4 w-4 text-blue-600" />
-                                <h2 className="text-sm font-semibold text-slate-900">Filter Download</h2>
-                            </div>
-                            <button onClick={resetFilters} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
-                                <RefreshCw className="h-3.5 w-3.5" />
-                                Reset
-                            </button>
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                            {(isAttendanceRecap || isStudentRecap) && (
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs font-semibold text-slate-600">Kelas</span>
-                                    <select className={fieldClass} value={filters.school_class_id} onChange={(event) => updateFilter('school_class_id', event.target.value)}>
-                                        <option value="">Semua kelas</option>
-                                        {classes.map((item) => (
-                                            <option key={item.id} value={item.id}>{item.name}</option>
-                                        ))}
-                                    </select>
-                                </label>
+                {/* Main Tabs (Kelas vs Mapel) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex rounded-lg bg-slate-200/60 p-1 w-fit border border-slate-200 shadow-inner">
+                        <button
+                            onClick={() => setRecapType('kelas')}
+                            className={cn(
+                                "rounded-md px-4 py-1.5 text-sm font-bold transition-all cursor-pointer",
+                                recapType === 'kelas' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-950'
                             )}
-
-                            {isAttendanceRecap && (
-                                <>
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Mapel</span>
-                                        <select className={fieldClass} value={filters.subject_id} onChange={(event) => updateFilter('subject_id', event.target.value)}>
-                                            <option value="">Semua mapel</option>
-                                            {subjects.map((item) => (
-                                                <option key={item.id} value={item.id}>{item.name}</option>
-                                            ))}
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Siswa</span>
-                                        <select className={fieldClass} value={filters.student_id} onChange={(event) => updateFilter('student_id', event.target.value)}>
-                                            <option value="">Semua siswa</option>
-                                            {students.map((item) => (
-                                                <option key={item.id} value={item.id}>{item.name}</option>
-                                            ))}
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Jenis Absensi</span>
-                                        <select className={fieldClass} value={filters.type} onChange={(event) => updateFilter('type', event.target.value)}>
-                                            <option value="gabungan">Gabungan</option>
-                                            <option value="kelas">Absensi Kelas</option>
-                                            <option value="mapel">Absensi Mapel</option>
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Tanggal Tepat</span>
-                                        <input className={fieldClass} type="date" value={filters.attendance_date} onChange={(event) => updateFilter('attendance_date', event.target.value)} />
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Dari Tanggal</span>
-                                        <input className={fieldClass} type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} />
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Sampai Tanggal</span>
-                                        <input className={fieldClass} type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} />
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Status Kehadiran</span>
-                                        <select className={fieldClass} value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
-                                            <option value="">Semua status</option>
-                                            {attendanceStatuses.map((item) => (
-                                                <option key={item.value} value={item.value}>{item.label}</option>
-                                            ))}
-                                        </select>
-                                    </label>
-                                </>
+                        >
+                            Absensi Kelas
+                        </button>
+                        <button
+                            onClick={() => setRecapType('mapel')}
+                            className={cn(
+                                "rounded-md px-4 py-1.5 text-sm font-bold transition-all cursor-pointer",
+                                recapType === 'mapel' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-950'
                             )}
+                        >
+                            Absensi Mapel
+                        </button>
+                    </div>
 
-                            {(isTeacherRecap || isStudentRecap) && (
-                                <label className="flex flex-col gap-1.5">
-                                    <span className="text-xs font-semibold text-slate-600">Jenis Kelamin</span>
-                                    <select className={fieldClass} value={filters.gender} onChange={(event) => updateFilter('gender', event.target.value)}>
-                                        <option value="">Semua gender</option>
-                                        <option value="L">Laki-laki</option>
-                                        <option value="P">Perempuan</option>
-                                    </select>
-                                </label>
+                    {/* Inner Mode Tabs (Ringkasan vs Pertemuan) */}
+                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200 w-fit">
+                        <button
+                            onClick={() => setViewMode('ringkasan')}
+                            className={cn(
+                                "px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
+                                viewMode === 'ringkasan' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
                             )}
-
-                            {isTeacherRecap && (
-                                <>
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Kategori Guru</span>
-                                        <select className={fieldClass} value={filters.category} onChange={(event) => updateFilter('category', event.target.value)}>
-                                            <option value="">Semua kategori</option>
-                                            {teacherCategories.map((item) => (
-                                                <option key={item.value} value={item.value}>{item.label}</option>
-                                            ))}
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Status Kepegawaian</span>
-                                        <input className={fieldClass} value={filters.employment_status} onChange={(event) => updateFilter('employment_status', event.target.value)} placeholder="PNS, honorer, tetap..." />
-                                    </label>
-                                </>
+                        >
+                            Ringkasan Kumulatif
+                        </button>
+                        <button
+                            onClick={() => setViewMode('pertemuan')}
+                            className={cn(
+                                "px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer",
+                                viewMode === 'pertemuan' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
                             )}
-
-                            {isStudentRecap && (
-                                <>
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Tingkat</span>
-                                        <select className={fieldClass} value={filters.level} onChange={(event) => updateFilter('level', event.target.value)}>
-                                            <option value="">Semua tingkat</option>
-                                            {levels.map((level) => (
-                                                <option key={level} value={level}>{level}</option>
-                                            ))}
-                                        </select>
-                                    </label>
-
-                                    <label className="flex flex-col gap-1.5">
-                                        <span className="text-xs font-semibold text-slate-600">Tahun Ajaran</span>
-                                        <select className={fieldClass} value={filters.academic_year} onChange={(event) => updateFilter('academic_year', event.target.value)}>
-                                            <option value="">Semua tahun</option>
-                                            {academicYears.map((year) => (
-                                                <option key={year} value={year}>{year}</option>
-                                            ))}
-                                        </select>
-                                    </label>
-                                </>
-                            )}
-
-                            <label className="flex flex-col gap-1.5 md:col-span-2 xl:col-span-3">
-                                <span className="text-xs font-semibold text-slate-600">Cari {isTeacherRecap ? 'Nama / NIK / NIP' : isStudentRecap ? 'Nama / NIK / NISN' : 'Nama Siswa'}</span>
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                    <input className={`${fieldClass} w-full pl-9`} value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} placeholder={isTeacherRecap ? 'Cari guru berdasarkan nama, NIK, atau NIP' : isStudentRecap ? 'Cari siswa berdasarkan nama, NIK, atau NISN' : 'Cari nama siswa pada rekap absen'} />
-                                </div>
-                            </label>
-                        </div>
-                    </section>
-
-                    <aside className="space-y-4">
-                        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="flex items-center gap-2">
-                                <CalendarDays className="h-4 w-4 text-blue-600" />
-                                <h2 className="text-sm font-semibold text-slate-900">Ringkasan Pilihan</h2>
-                            </div>
-                            <dl className="mt-4 space-y-3 text-sm">
-                                <div>
-                                    <dt className="text-xs font-semibold uppercase text-slate-400">Dataset</dt>
-                                    <dd className="mt-0.5 font-semibold text-slate-800">{selectedDataset}</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-xs font-semibold uppercase text-slate-400">Periode</dt>
-                                    <dd className="mt-0.5 text-slate-700">{filters.attendance_date || `${filters.date_from || 'awal'} sampai ${filters.date_to || 'akhir'}`}</dd>
-                                </div>
-                                <div>
-                                    <dt className="text-xs font-semibold uppercase text-slate-400">Status</dt>
-                                    <dd className="mt-0.5 text-slate-700">{filters.status || 'Semua status'}</dd>
-                                </div>
-                            </dl>
-                        </div>
-
-                        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                            <div className="flex items-center gap-2">
-                                <BarChart3 className="h-4 w-4 text-blue-600" />
-                                <h2 className="text-sm font-semibold text-slate-900">Data Tersedia</h2>
-                            </div>
-                            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                                <div className="rounded-lg bg-slate-50 p-3">
-                                    <p className="text-xs text-slate-500">Kelas</p>
-                                    <p className="text-lg font-bold text-slate-900">{loadingOptions ? '-' : classes.length}</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-50 p-3">
-                                    <p className="text-xs text-slate-500">Mapel</p>
-                                    <p className="text-lg font-bold text-slate-900">{loadingOptions ? '-' : subjects.length}</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-50 p-3">
-                                    <p className="text-xs text-slate-500">Guru</p>
-                                    <p className="text-lg font-bold text-slate-900">{loadingOptions ? '-' : teachers.length}</p>
-                                </div>
-                                <div className="rounded-lg bg-slate-50 p-3">
-                                    <p className="text-xs text-slate-500">Siswa</p>
-                                    <p className="text-lg font-bold text-slate-900">{loadingOptions ? '-' : students.length}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
+                        >
+                            Detail Pertemuan
+                        </button>
+                    </div>
                 </div>
+
+                {/* Filter Panel */}
+                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-blue-600" />
+                            <h2 className="text-sm font-bold text-slate-800">Filter Analisis</h2>
+                        </div>
+                        <button onClick={resetFilters} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50 cursor-pointer">
+                            Reset Filter
+                        </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-xs font-semibold text-slate-500">Pilih Kelas</span>
+                            <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)} className={fieldClass}>
+                                <option value="">Semua Kelas</option>
+                                {classes.map(c => <option key={c.id} value={c.id}>Kelas {c.name}</option>)}
+                            </select>
+                        </label>
+
+                        {recapType === 'mapel' && (
+                            <label className="flex flex-col gap-1.5">
+                                <span className="text-xs font-semibold text-slate-500">Mata Pelajaran</span>
+                                <select value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)} className={fieldClass}>
+                                    <option value="">Semua Mapel</option>
+                                    {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </label>
+                        )}
+
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-xs font-semibold text-slate-500">Siswa (Perorangan)</span>
+                            <select value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)} className={fieldClass}>
+                                <option value="">Semua Siswa</option>
+                                {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </label>
+
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-xs font-semibold text-slate-500">Dari Tanggal</span>
+                            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={fieldClass} />
+                        </label>
+
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-xs font-semibold text-slate-500">Sampai Tanggal</span>
+                            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={fieldClass} />
+                        </label>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                        <div className="relative w-full sm:max-w-md">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Cari nama, NIK, atau status..."
+                                className={cn(fieldClass, "w-full pl-9")}
+                            />
+                        </div>
+
+                        <button onClick={fetchRecords} disabled={loading} className="w-full sm:w-auto inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60 cursor-pointer">
+                            Terapkan Filter
+                        </button>
+                    </div>
+                </section>
+
+                {/* Table Data View */}
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center h-64 gap-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                        <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                        <p className="text-sm text-slate-500 font-medium">Memuat data absensi...</p>
+                    </div>
+                ) : loadError ? (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <h3 className="font-bold">Gagal memuat rekap absensi</h3>
+                            <p className="text-sm mt-1">{loadError}</p>
+                        </div>
+                    </div>
+                ) : (recapType === 'kelas' ? classRecords.length === 0 : subjectRecords.length === 0) ? (
+                    <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+                        <BarChart3 className="mx-auto h-10 w-10 text-slate-300" />
+                        <h2 className="mt-3 font-semibold text-slate-900">Belum ada data absensi terekam</h2>
+                        <p className="mt-1 text-sm text-slate-500">Coba ubah filter tanggal atau pilih filter kelas/siswa lainnya.</p>
+                    </div>
+                ) : (
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                            {viewMode === 'ringkasan' ? (
+                                /* --- CUMULATIVE SUMMARY TABLE --- */
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-100">
+                                        <tr>
+                                            <th className="px-5 py-3">Siswa</th>
+                                            <th className="px-5 py-3">{recapType === 'kelas' ? 'Kelas' : 'Detail Kelas & Mapel'}</th>
+                                            {statusOptions.map(opt => <th key={opt.value} className="px-4 py-3 text-center">{opt.label}</th>)}
+                                            <th className="px-4 py-3 text-center">Total</th>
+                                            <th className="px-4 py-3 text-center">% Kehadiran</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {recapType === 'kelas' ? (
+                                            classRecapRows.map((row, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/50">
+                                                    <td className="px-5 py-3.5">
+                                                        <p className="font-bold text-slate-950">{row.student?.name}</p>
+                                                        <p className="text-xs text-slate-400 font-medium">NIK: {row.student?.nik || '-'}</p>
+                                                    </td>
+                                                    <td className="px-5 py-3.5 text-slate-600 font-medium">{row.className}</td>
+                                                    {row.summary.map(s => <td key={s.value} className="px-4 py-3 text-center font-bold text-slate-700">{s.total}</td>)}
+                                                    <td className="px-4 py-3 text-center font-bold text-slate-800">{row.total}</td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded-full text-xs font-bold",
+                                                            row.presentRate >= 90 ? "bg-emerald-50 text-emerald-700" : row.presentRate >= 75 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"
+                                                        )}>
+                                                            {row.presentRate}%
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            subjectRecapRows.map((row, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/50">
+                                                    <td className="px-5 py-3.5">
+                                                        <p className="font-bold text-slate-950">{row.student?.name}</p>
+                                                        <p className="text-xs text-slate-400 font-medium">NIK: {row.student?.nik || '-'}</p>
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
+                                                        <p className="font-semibold text-slate-800">{row.subjectName} ({row.className})</p>
+                                                        <p className="text-[11px] text-slate-400 font-medium">Guru: {row.teacherName}</p>
+                                                    </td>
+                                                    {row.summary.map(s => <td key={s.value} className="px-4 py-3 text-center font-bold text-slate-700">{s.total}</td>)}
+                                                    <td className="px-4 py-3 text-center font-bold text-slate-800">{row.total}</td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <span className={cn(
+                                                            "px-2 py-0.5 rounded-full text-xs font-bold",
+                                                            row.presentRate >= 90 ? "bg-emerald-50 text-emerald-700" : row.presentRate >= 75 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"
+                                                        )}>
+                                                            {row.presentRate}%
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                /* --- INDIVIDUAL MEETING-BY-MEETING TABLE --- */
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-100">
+                                        <tr>
+                                            <th className="px-5 py-3">Tanggal</th>
+                                            <th className="px-5 py-3">Siswa</th>
+                                            <th className="px-5 py-3">{recapType === 'kelas' ? 'Kelas' : 'Detail Pelajaran'}</th>
+                                            <th className="px-5 py-3 text-center">Status</th>
+                                            <th className="px-5 py-3">Catatan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {recapType === 'kelas' ? (
+                                            filteredClassRecords.map((record, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/50">
+                                                    <td className="px-5 py-3 text-slate-700 font-mono text-xs">{record.attendance_date}</td>
+                                                    <td className="px-5 py-3">
+                                                        <p className="font-bold text-slate-900">{record.student?.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium">NIK: {record.student?.nik || '-'}</p>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-slate-600 font-medium">{record.school_class?.name}</td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className={cn(
+                                                            "px-2.5 py-0.5 rounded-full text-xs font-bold capitalize",
+                                                            record.status === 'hadir' ? "bg-emerald-50 text-emerald-700" : record.status === 'sakit' ? "bg-amber-50 text-amber-700" : record.status === 'izin' ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700"
+                                                        )}>
+                                                            {record.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-xs text-slate-500 font-medium italic">{record.notes || '-'}</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            filteredSubjectRecords.map((record, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50/50">
+                                                    <td className="px-5 py-3 text-slate-700 font-mono text-xs">{record.attendance_date}</td>
+                                                    <td className="px-5 py-3">
+                                                        <p className="font-bold text-slate-900">{record.student?.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium">NIK: {record.student?.nik || '-'}</p>
+                                                    </td>
+                                                    <td className="px-5 py-3">
+                                                        <p className="font-semibold text-slate-800">{record.teaching_assignment?.subject?.name} ({record.teaching_assignment?.school_class?.name})</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium">Guru: {record.teaching_assignment?.teacher?.name}</p>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className={cn(
+                                                            "px-2.5 py-0.5 rounded-full text-xs font-bold capitalize",
+                                                            record.status === 'hadir' ? "bg-emerald-50 text-emerald-700" : record.status === 'sakit' ? "bg-amber-50 text-amber-700" : record.status === 'izin' ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700"
+                                                        )}>
+                                                            {record.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-xs text-slate-500 font-medium italic">{record.notes || '-'}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -82,9 +82,6 @@ export const ADMIN_NAV_GROUPS: NavGroup[] = [
                 id: "absensi", label: "Absensi", icon: CheckSquare,
                 subItems: [
                     { id: "absensi-rekap", label: "Rekap Absen Siswa", path: "/absensi/rekap" },
-                    { id: "absensi-guru", label: "Rekap Guru", path: "/absensi/guru" },
-                    { id: "absensi-siswa", label: "Rekap Siswa", path: "/absensi/siswa" },
-                    { id: "absensi-statistik", label: "Statistik", path: "/absensi/statistik" },
                 ]
             },
             {
@@ -109,18 +106,12 @@ export const ADMIN_NAV_GROUPS: NavGroup[] = [
                 id: "manajemen-pengguna", label: "Pengguna", icon: Users,
                 subItems: [
                     { id: "users-akun", label: "Semua Akun", path: "/pengguna/akun" },
-                    { id: "users-role", label: "Role & Permission", path: "/pengguna/role" },
-                    { id: "users-riwayat", label: "Riwayat Login", path: "/pengguna/riwayat" },
                 ]
             },
             {
                 id: "pengaturan", label: "Pengaturan", icon: Settings,
                 subItems: [
                     { id: "settings-profil-saya", label: "Profil Saya", path: "/admin/profil" },
-                    { id: "settings-profil", label: "Profil Sekolah", path: "/pengaturan/profil" },
-                    { id: "settings-konfigurasi", label: "Konfigurasi Sistem", path: "/pengaturan/konfigurasi" },
-                    { id: "settings-backup", label: "Backup & Restore", path: "/pengaturan/backup" },
-                    { id: "settings-audit", label: "Audit Log", path: "/pengaturan/audit" },
                     { id: "settings-data-reset", label: "Reset Data", path: "/pengaturan/data-reset" },
                 ]
             },

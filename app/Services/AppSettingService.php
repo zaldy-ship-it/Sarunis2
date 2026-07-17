@@ -13,7 +13,9 @@ class AppSettingService
         ['key' => 'school_name', 'label' => 'Nama Sekolah', 'value' => 'SMP IP YAKIN', 'type' => 'text', 'description' => 'Nama sekolah yang tampil di portal.'],
         ['key' => 'academic_year', 'label' => 'Tahun Ajaran Aktif', 'value' => '2025/2026', 'type' => 'text', 'description' => 'Tahun ajaran default untuk data akademik.'],
         ['key' => 'active_semester', 'label' => 'Semester Aktif', 'value' => 'ganjil', 'type' => 'text', 'description' => 'Semester aktif untuk kalender akademik dan agenda dashboard.'],
-        ['key' => 'school_start_date', 'label' => 'Tanggal Awal Masuk Sekolah', 'value' => '2025-07-14', 'type' => 'text', 'description' => 'Tanggal pertama awal masuk sekolah / mulai KBM semester aktif (format: YYYY-MM-DD).'],
+        ['key' => 'school_start_date', 'label' => 'Tanggal Awal Masuk Sekolah', 'value' => '2025-07-14', 'type' => 'date', 'description' => 'Tanggal pertama awal masuk sekolah / mulai KBM semester aktif (format: YYYY-MM-DD).'],
+        ['key' => 'school_end_date', 'label' => 'Tanggal Akhir Masuk Sekolah', 'value' => '2026-06-30', 'type' => 'date', 'description' => 'Tanggal akhir masuk sekolah / akhir KBM semester aktif (format: YYYY-MM-DD).'],
+        ['key' => 'school_saturday_enabled', 'label' => 'Sabtu Masuk', 'value' => '1', 'type' => 'boolean', 'description' => 'Tentukan apakah hari Sabtu dihitung sebagai pertemuan KBM.'],
         ['key' => 'contact_phone', 'label' => 'Kontak Sekolah', 'value' => '', 'type' => 'text', 'description' => 'Nomor kontak sekolah.'],
     ];
 
@@ -47,3 +49,4 @@ class AppSettingService
     {
     }
 }
+

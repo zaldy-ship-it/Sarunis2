@@ -44,7 +44,10 @@ class ImportExportController extends Controller
 
         $response = [
             'message' => 'Import selesai.',
-            'data' => $summary,
+            'created' => $summary['created'],
+            'updated' => $summary['updated'],
+            'failed' => $summary['failed'],
+            'errors' => $summary['errors'],
         ];
 
         if ($request->expectsJson()) {

@@ -64,18 +64,29 @@ class SchoolClassController extends Controller
 
     public function meetings(SchoolClass $schoolClass): JsonResponse
     {
-        $startDateVal = $this->appSettingService->value('school_start_date', '2025-07-14');
-        $start = Carbon::parse($startDateVal);
+        $startDateVal = $this->appSettingService->value('school_start_date', '2025-07-14') ?: '2025-07-14';
+        $endDateVal = $this->appSettingService->value('school_end_date', '2026-06-30') ?: '2026-06-30';
+        $saturdayEnabled = filter_var(
+            $this->appSettingService->value('school_saturday_enabled', '1') ?? '1',
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        $start = Carbon::parse($startDateVal)->startOfDay();
+        $end = Carbon::parse($endDateVal)->startOfDay();
+
+        if ($end->lt($start)) {
+            $end = $start->copy();
+        }
         
         $meetings = [];
         $current = $start->copy();
-        
-        // Generate 120 school days (Monday to Saturday) starting from school_start_date
         $meetingNum = 1;
-        while (count($meetings) < 120) {
-            // Day of week: 0 is Sunday, 6 is Saturday in Carbon (actually 0 is Sunday, 1 is Monday... 6 is Saturday)
-            // Carbon's dayOfWeek: 0 (Sunday) to 6 (Saturday)
-            if ($current->dayOfWeek !== Carbon::SUNDAY) {
+
+        while ($current->lte($end)) {
+            $isSunday = $current->dayOfWeek === Carbon::SUNDAY;
+            $isSaturday = $current->dayOfWeek === Carbon::SATURDAY;
+
+            if (!$isSunday && (!$isSaturday || $saturdayEnabled)) {
                 $meetings[] = [
                     'number' => $meetingNum,
                     'date' => $current->toDateString(),
@@ -84,11 +95,20 @@ class SchoolClassController extends Controller
                 ];
                 $meetingNum++;
             }
+
             $current->addDay();
         }
 
         return response()->json([
             'data' => $meetings,
+            'meta' => [
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'saturday_enabled' => $saturdayEnabled,
+                'total_meetings' => count($meetings),
+            ],
         ]);
     }
 }
+
+

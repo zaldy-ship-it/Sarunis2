@@ -38,7 +38,7 @@ class SubjectScheduleTest extends TestCase
         ];
 
         $response = $this->actingAs($admin)
-            ->postJson('/admin/mapel', $payload);
+            ->postJson('/api/v1/admin/mapel', $payload);
 
         $response->assertStatus(201);
         $response->assertJsonPath('data.code', 'TEST-SUBJ');
@@ -69,7 +69,7 @@ class SubjectScheduleTest extends TestCase
         ];
 
         $response = $this->actingAs($admin)
-            ->postJson('/admin/mapel', $payload);
+            ->postJson('/api/v1/admin/mapel', $payload);
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['day_of_week']);
 
@@ -82,7 +82,7 @@ class SubjectScheduleTest extends TestCase
         ];
 
         $response = $this->actingAs($admin)
-            ->postJson('/admin/mapel', $payload);
+            ->postJson('/api/v1/admin/mapel', $payload);
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['end_time']);
     }
@@ -107,7 +107,7 @@ class SubjectScheduleTest extends TestCase
         ];
 
         $response = $this->actingAs($admin)
-            ->putJson("/admin/mapel/{$subject->id}", $payload);
+            ->putJson("/api/v1/admin/mapel/{$subject->id}", $payload);
 
         $response->assertStatus(200);
 
@@ -147,7 +147,7 @@ class SubjectScheduleTest extends TestCase
 
         // Run auto-plotting via POST request
         $response = $this->actingAs($admin)
-            ->postJson('/admin/schedule/generate', [
+            ->postJson('/api/v1/admin/schedule/generate', [
                 'academic_year' => $schoolClass->academic_year,
                 'clear_existing' => true,
                 'validate_only' => false,
@@ -206,7 +206,7 @@ class SubjectScheduleTest extends TestCase
 
         // Run auto-plotting for Class 1 (do not clear existing, so the conflict assignment in Class 2 is preserved)
         $response = $this->actingAs($admin)
-            ->postJson('/admin/schedule/generate', [
+            ->postJson('/api/v1/admin/schedule/generate', [
                 'academic_year' => $schoolClass1->academic_year,
                 'clear_existing' => false,
                 'validate_only' => false,

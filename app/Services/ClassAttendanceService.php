@@ -43,16 +43,7 @@ class ClassAttendanceService
             throw new AuthorizationException('Anda tidak berhak mengisi absensi untuk kelas ini.');
         }
 
-        $validStudentIds = $schoolClass->students->pluck('id')->all();
-        $submittedStudentIds = collect($payload['attendances'])->pluck('student_id')->all();
-        $invalidStudentIds = array_values(array_diff($submittedStudentIds, $validStudentIds));
-
-        if ($invalidStudentIds !== []) {
-            throw ValidationException::withMessages([
-                'attendances' => ['Terdapat siswa yang tidak termasuk dalam kelas ini.'],
-            ]);
-        }
-
+        $this->validateClassStudents($schoolClass, $payload['attendances']);
         $this->ensureAttendanceCanBeRecorded($payload['attendance_date']);
         $this->persistAttendances($teacher->id, $payload);
 
@@ -127,7 +118,7 @@ class ClassAttendanceService
         $allowedClassIds = $this->allowedClassIdsForTeacher($teacher);
 
         if (isset($filters['school_class_id'])) {
-            if (! in_array($filters['school_class_id'], $allowedClassIds)) {
+            if (! in_array($filters['school_class_id'], $allowedClassIds, true)) {
                 throw new AuthorizationException('Anda tidak berhak mengakses absensi kelas ini.');
             }
         } else {
@@ -190,6 +181,13 @@ class ClassAttendanceService
     {
         $validStudentIds = $schoolClass->students->pluck('id')->all();
         $submittedStudentIds = collect($attendances)->pluck('student_id')->all();
+
+        if (count($submittedStudentIds) !== count(array_unique($submittedStudentIds))) {
+            throw ValidationException::withMessages([
+                'attendances' => ['Data absensi berisi siswa yang sama lebih dari satu kali.'],
+            ]);
+        }
+
         $invalidStudentIds = array_values(array_diff($submittedStudentIds, $validStudentIds));
 
         if ($invalidStudentIds !== []) {
@@ -210,11 +208,45 @@ class ClassAttendanceService
             ]);
         }
 
+        $this->ensureEffectiveSchoolDate($attendanceDate);
+
         $status = $this->academicCalendarService->attendanceStatusForDate($academicYear, $semester, $attendanceDate);
 
         if (! $status['allowed']) {
             throw ValidationException::withMessages([
                 'attendance_date' => [$status['message']],
+            ]);
+        }
+    }
+
+    protected function ensureEffectiveSchoolDate(string $attendanceDate): void
+    {
+        $startDateVal = $this->appSettingService->value('school_start_date', '2025-07-14') ?: '2025-07-14';
+        $endDateVal = $this->appSettingService->value('school_end_date', '2026-06-30') ?: '2026-06-30';
+        $saturdayEnabled = filter_var(
+            $this->appSettingService->value('school_saturday_enabled', '1') ?? '1',
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        $date = CarbonImmutable::parse($attendanceDate)->startOfDay();
+        $start = CarbonImmutable::parse($startDateVal)->startOfDay();
+        $end = CarbonImmutable::parse($endDateVal)->startOfDay();
+
+        if ($end->lt($start) || $date->lt($start) || $date->gt($end)) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Tanggal absensi berada di luar rentang KBM aktif.'],
+            ]);
+        }
+
+        if ($date->dayOfWeekIso === 7) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Hari Minggu tidak dihitung sebagai pertemuan KBM.'],
+            ]);
+        }
+
+        if ($date->dayOfWeekIso === 6 && ! $saturdayEnabled) {
+            throw ValidationException::withMessages([
+                'attendance_date' => ['Hari Sabtu tidak dihitung sebagai pertemuan KBM pada pengaturan saat ini.'],
             ]);
         }
     }
@@ -248,11 +280,13 @@ class ClassAttendanceService
 
     public function isFirstPeriodTeacherForDate(Teacher $teacher, int $schoolClassId, string $dateString): bool
     {
+        $academicYear = $this->appSettingService->value('academic_year', '2025/2026') ?: '2025/2026';
         $date = CarbonImmutable::parse($dateString);
-        $dayOfWeek = $date->dayOfWeekIso; // 1 (Mon) - 7 (Sun)
+        $dayOfWeek = $this->scheduleDayFromIso($date->dayOfWeekIso);
 
         $earliestAssignment = TeachingAssignment::query()
             ->where('school_class_id', $schoolClassId)
+            ->where('academic_year', $academicYear)
             ->where('day_of_week', $dayOfWeek)
             ->orderBy('start_time', 'asc')
             ->first();
@@ -260,14 +294,23 @@ class ClassAttendanceService
         return $earliestAssignment !== null && $earliestAssignment->teacher_id === $teacher->id;
     }
 
+    protected function scheduleDayFromIso(int $dayOfWeekIso): int
+    {
+        return $dayOfWeekIso - 1;
+    }
+
     public function allowedClassIdsForTeacher(Teacher $teacher): array
     {
+        $academicYear = $this->appSettingService->value('academic_year', '2025/2026') ?: '2025/2026';
+
         $homeroomClassIds = SchoolClass::query()
+            ->where('academic_year', $academicYear)
             ->where('homeroom_teacher_id', $teacher->id)
             ->pluck('id')
             ->all();
 
         $teacherAssignments = TeachingAssignment::query()
+            ->where('academic_year', $academicYear)
             ->where('teacher_id', $teacher->id)
             ->get();
 
@@ -275,6 +318,7 @@ class ClassAttendanceService
         foreach ($teacherAssignments as $assignment) {
             $isEarliest = ! TeachingAssignment::query()
                 ->where('school_class_id', $assignment->school_class_id)
+                ->where('academic_year', $assignment->academic_year)
                 ->where('day_of_week', $assignment->day_of_week)
                 ->where('start_time', '<', $assignment->start_time)
                 ->exists();
@@ -287,3 +331,4 @@ class ClassAttendanceService
         return array_values(array_unique(array_merge($homeroomClassIds, $firstPeriodClassIds)));
     }
 }
+

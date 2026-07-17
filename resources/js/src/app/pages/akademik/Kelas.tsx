@@ -42,6 +42,7 @@ export const Kelas = () => {
     const [classLevel, setClassLevel] = useState('7');
     const [academicYear, setAcademicYear] = useState('2025/2026');
     const [description, setDescription] = useState('');
+    const [formHomeroomTeacherId, setFormHomeroomTeacherId] = useState('');
 
     // Form fields - Plotting
     const [homeroomTeacherId, setHomeroomTeacherId] = useState('');
@@ -92,6 +93,7 @@ export const Kelas = () => {
         setClassLevel('7');
         setAcademicYear('2025/2026');
         setDescription('');
+        setFormHomeroomTeacherId('');
         setIsClassFormOpen(true);
     };
 
@@ -101,6 +103,7 @@ export const Kelas = () => {
         setClassLevel(cls.level);
         setAcademicYear(cls.academic_year);
         setDescription(cls.description || '');
+        setFormHomeroomTeacherId(cls.homeroom_teacher_id?.toString() || '');
         setIsClassFormOpen(true);
     };
 
@@ -112,6 +115,7 @@ export const Kelas = () => {
             name: className,
             level: classLevel,
             academic_year: academicYear,
+            homeroom_teacher_id: formHomeroomTeacherId ? parseInt(formHomeroomTeacherId) : null,
             description: description || null,
         };
 
@@ -307,6 +311,17 @@ export const Kelas = () => {
                                         <option value="9">9 (Sembilan)</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1">Wali Kelas (Opsional)</label>
+                                <select value={formHomeroomTeacherId} onChange={(e) => setFormHomeroomTeacherId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                                    <option value="">Pilih Guru Wali Kelas...</option>
+                                    {teachers.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} (NIP: {t.nip})</option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-slate-500 mt-1">Satu guru hanya bisa menjadi wali untuk satu kelas dalam satu tahun ajaran.</p>
                             </div>
 
                             <div>

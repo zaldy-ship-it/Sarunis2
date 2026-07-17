@@ -26,7 +26,9 @@ class UpdateClassPlottingRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('teachers', 'id'),
-                Rule::unique('school_classes', 'homeroom_teacher_id')->ignore($schoolClass?->id),
+                Rule::unique('school_classes', 'homeroom_teacher_id')
+                    ->where(fn ($query) => $query->where('academic_year', $schoolClass?->academic_year))
+                    ->ignore($schoolClass?->id),
             ],
             'student_ids' => ['nullable', 'array'],
             'student_ids.*' => ['integer', 'distinct', Rule::exists('students', 'id')],

@@ -19,7 +19,7 @@ class TeacherController extends Controller
     public function index(AdminListRequest $request): JsonResponse
     {
         return response()->json(
-            $this->teacherService->paginate($request->integer('per_page', 15))
+            $this->teacherService->paginate($request->integer('per_page', 15), $request->string('search')->toString())
         );
     }
 

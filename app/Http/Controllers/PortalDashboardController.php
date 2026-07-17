@@ -3101,23 +3101,28 @@ class PortalDashboardController extends Controller
 
     protected function getMeetingLabelForSchedule(int $teachingAssignmentId, string $date): string
     {
-        $academicYear = $this->activeAcademicYear();
-        $semester = $this->activeSemester();
+        $assignment = TeachingAssignment::query()->find($teachingAssignmentId);
 
-        $existingDates = SubjectAttendance::query()
-            ->where('teaching_assignment_id', $teachingAssignmentId)
-            ->whereNotNull('attendance_date')
-            ->select('attendance_date')
-            ->distinct()
-            ->get()
-            ->map(fn($record) => $record->attendance_date->toDateString())
-            ->toArray();
-
-        if (!in_array($date, $existingDates, true)) {
-            $existingDates[] = $date;
+        if (!$assignment) {
+            return '-';
         }
 
-        sort($existingDates);
+        $academicYear = $this->activeAcademicYear();
+        $semester = $this->activeSemester();
+        $startDateVal = $this->appSettingService->value('school_start_date', '2025-07-14') ?: '2025-07-14';
+        $endDateVal = $this->appSettingService->value('school_end_date', '2026-06-30') ?: '2026-06-30';
+        $saturdayEnabled = filter_var(
+            $this->appSettingService->value('school_saturday_enabled', '1') ?? '1',
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        $start = CarbonImmutable::parse($startDateVal)->startOfDay();
+        $end = CarbonImmutable::parse($endDateVal)->startOfDay();
+        $targetDate = CarbonImmutable::parse($date)->startOfDay();
+
+        if ($end->lt($start) || $targetDate->lt($start) || $targetDate->gt($end)) {
+            return '-';
+        }
 
         $examEvents = AcademicCalendar::query()
             ->where('academic_year', $academicYear)
@@ -3136,26 +3141,39 @@ class PortalDashboardController extends Controller
             return null;
         };
 
-        $meetingCounter = 0;
-        $label = '-';
+        $targetDateString = $targetDate->toDateString();
+        $targetExamLabel = $examLabelForDate($targetDateString);
 
-        foreach ($existingDates as $d) {
-            $examLabel = $examLabelForDate($d);
-            if ($examLabel) {
-                if ($d === $date) {
-                    $label = $examLabel;
-                    break;
-                }
-            } else {
-                $meetingCounter++;
-                if ($d === $date) {
-                    $label = 'Pertemuan ' . $meetingCounter;
-                    break;
-                }
-            }
+        if ($targetExamLabel) {
+            return $targetExamLabel;
         }
 
-        return $label;
+        $meetingCounter = 0;
+        $current = $start;
+
+        while ($current->lte($targetDate)) {
+            $isSunday = $current->dayOfWeekIso === 7;
+            $isSaturday = $current->dayOfWeekIso === 6;
+            $scheduleDay = $this->scheduleDayFromIso($current->dayOfWeekIso);
+            $dateString = $current->toDateString();
+
+            if (
+                !$isSunday
+                && (!$isSaturday || $saturdayEnabled)
+                && (int) $assignment->day_of_week === $scheduleDay
+                && !$examLabelForDate($dateString)
+            ) {
+                $meetingCounter++;
+
+                if ($dateString === $targetDateString) {
+                    return 'Pertemuan ' . $meetingCounter;
+                }
+            }
+
+            $current = $current->addDay();
+        }
+
+        return '-';
     }
 
     /**
@@ -3255,3 +3273,5 @@ class PortalDashboardController extends Controller
         return $dayOfWeekIso - 1;
     }
 }
+
+
