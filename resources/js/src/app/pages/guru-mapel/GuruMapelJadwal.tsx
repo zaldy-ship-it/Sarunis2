@@ -167,6 +167,7 @@ export const GuruMapelJadwal = () => {
     const [viewMode, setViewMode] = useState<ViewMode>('absen');
     const [mobileStep, setMobileStep] = useState<'mapel' | 'pertemuan' | 'absen'>('mapel');
     const [query, setQuery] = useState('');
+    const [attendanceTestMode, setAttendanceTestMode] = useState(false);
 
     const [loadingSchedules, setLoadingSchedules] = useState(true);
     const [loadingMeetings, setLoadingMeetings] = useState(false);
@@ -179,12 +180,22 @@ export const GuruMapelJadwal = () => {
         return getMeetingStatus(selectedMeeting.date, selectedSchedule);
     }, [selectedMeeting, selectedSchedule]);
 
-    const isReadOnly = meetingStatus === 'sudah berlangsung';
-    const isNotStarted = meetingStatus === 'belum berlangsung';
+    const isReadOnly = !attendanceTestMode && meetingStatus === 'sudah berlangsung';
+    const isNotStarted = !attendanceTestMode && meetingStatus === 'belum berlangsung';
 
     useEffect(() => {
         fetchSchedules();
+        fetchAttendanceTestMode();
     }, []);
+
+    const fetchAttendanceTestMode = async () => {
+        try {
+            const response = await api.get('/attendance-test-mode');
+            setAttendanceTestMode(Boolean(response.data.enabled));
+        } catch {
+            setAttendanceTestMode(false);
+        }
+    };
 
     const selectedSummary = useMemo(() => {
         const values = Object.values(attendances);
@@ -628,6 +639,13 @@ export const GuruMapelJadwal = () => {
                                         >
                                             <ArrowLeft className="h-4 w-4" /> Kembali ke Pertemuan
                                         </button>
+
+                                        {attendanceTestMode && (
+                                        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700 font-medium shadow-sm">
+                                            <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
+                                            <span>Mode test aktif. Absensi dapat diisi tanpa mengikuti waktu jadwal.</span>
+                                        </div>
+                                    )}
 
                                         {isReadOnly && (
                                         <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-700 font-medium shadow-sm">

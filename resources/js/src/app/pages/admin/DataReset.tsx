@@ -71,6 +71,15 @@ interface ResetSummaryItem {
     rows_deleted: number;
 }
 
+interface AppSetting {
+    id: number;
+    key: string;
+    label: string;
+    value: string | null;
+    type: string;
+    description?: string | null;
+}
+
 // ─── Confirmation Modal ────────────────────────────────────────────────
 function ConfirmationModal({
     open, onClose, selectedGroups, onConfirm, loading
@@ -286,12 +295,18 @@ export const DataReset = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [executing, setExecuting] = useState(false);
     const [result, setResult] = useState<{ message: string; summary: ResetSummaryItem[]; totalDeleted: number } | null>(null);
+    const [attendanceTestModeSetting, setAttendanceTestModeSetting] = useState<AppSetting | null>(null);
+    const [attendanceTestMode, setAttendanceTestMode] = useState(false);
+    const [savingTestMode, setSavingTestMode] = useState(false);
 
     const fetchGroups = useCallback(async () => {
         setLoading(true);
         try {
             const res = await api.get('/admin/data-reset');
             setGroups(res.data.groups || []);
+            const setting = res.data.settings?.attendance_test_mode || null;
+            setAttendanceTestModeSetting(setting);
+            setAttendanceTestMode(setting?.value === '1' || setting?.value === 'true');
         } catch {
             toast.error('Gagal memuat data tabel.');
         } finally {
@@ -322,6 +337,30 @@ export const DataReset = () => {
 
     const selectedGroups = groups.filter(g => selected.has(g.key));
     const selectedTotalRows = selectedGroups.reduce((acc, g) => acc + g.total_rows, 0);
+
+    const toggleAttendanceTestMode = async () => {
+        if (!attendanceTestModeSetting) {
+            toast.error('Pengaturan mode test belum tersedia. Muat ulang halaman.');
+            return;
+        }
+
+        const nextValue = !attendanceTestMode;
+        setAttendanceTestMode(nextValue);
+        setSavingTestMode(true);
+
+        try {
+            const res = await api.patch(`/admin/setting/${attendanceTestModeSetting.id}/value`, {
+                value: nextValue ? '1' : '0',
+            });
+            setAttendanceTestModeSetting(res.data.data);
+            toast.success(nextValue ? 'Mode test absensi diaktifkan.' : 'Mode test absensi dinonaktifkan.');
+        } catch (err: any) {
+            setAttendanceTestMode(!nextValue);
+            toast.error(err.response?.data?.message || 'Gagal mengubah mode test absensi.');
+        } finally {
+            setSavingTestMode(false);
+        }
+    };
 
     const handleConfirm = async (password: string) => {
         setExecuting(true);
@@ -378,6 +417,42 @@ export const DataReset = () => {
                     </p>
                 </div>
             </div>
+
+            {/* Mode Test Absensi */}
+            <Crd className={cn(
+                "p-5 border-l-4",
+                attendanceTestMode ? "border-l-amber-500 bg-amber-50/40" : "border-l-slate-300"
+            )}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className={cn(
+                            "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                            attendanceTestMode ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                        )}>
+                            <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="text-sm font-bold text-slate-900">Mode Test Absensi</h2>
+                                <Bdg v={attendanceTestMode ? 'warning' : 'default'}>{attendanceTestMode ? 'Aktif' : 'Nonaktif'}</Bdg>
+                            </div>
+                            <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">
+                                Jika dicentang, guru dapat mengisi absensi untuk kebutuhan uji coba tanpa mengikuti hari atau jam jadwal. Matikan kembali saat sistem dipakai operasional.
+                            </p>
+                        </div>
+                    </div>
+                    <label className="inline-flex cursor-pointer select-none items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm sm:self-center">
+                        <input
+                            type="checkbox"
+                            checked={attendanceTestMode}
+                            onChange={toggleAttendanceTestMode}
+                            disabled={savingTestMode || !attendanceTestModeSetting}
+                            className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 disabled:opacity-50"
+                        />
+                        {savingTestMode ? 'Menyimpan...' : 'Aktifkan mode test'}
+                    </label>
+                </div>
+            </Crd>
 
             {/* Info Banner */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3.5 flex items-start gap-3">

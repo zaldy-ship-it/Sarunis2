@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Services\AppSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +14,11 @@ use Illuminate\Support\Facades\Schema;
 
 class DataResetController extends Controller
 {
+    public function __construct(
+        protected AppSettingService $appSettingService,
+    ) {
+    }
+
     /**
      * Defines the table groups that can be reset.
      * Order within each group matters for FK-safe deletion (children first).
@@ -121,6 +128,8 @@ class DataResetController extends Controller
      */
     public function index(): JsonResponse
     {
+        $this->appSettingService->ensureDefaults();
+
         $groups = [];
 
         foreach ($this->tableGroups() as $key => $group) {
@@ -149,10 +158,75 @@ class DataResetController extends Controller
 
         return response()->json([
             'groups' => $groups,
+            'settings' => [
+                'attendance_test_mode' => AppSetting::query()->where('key', 'attendance_test_mode')->first(),
+            ],
             'protected_tables' => ['users', 'app_settings', 'migrations', 'cache', 'sessions', 'jobs', 'failed_jobs', 'personal_access_tokens', 'auth_verification_codes'],
         ]);
     }
 
+    /**
+     * @param array<int, string> $tables
+     */
+    protected function truncateTables(array $tables): void
+    {
+        if ($tables === []) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            $tableList = collect($tables)
+                ->map(fn (string $table): string => '"' . str_replace('"', '""', $table) . '"')
+                ->implode(', ');
+
+            DB::statement("TRUNCATE TABLE {$tableList} RESTART IDENTITY CASCADE");
+            return;
+        }
+
+        if ($driver === 'sqlite') {
+            DB::statement('PRAGMA foreign_keys = OFF;');
+
+            try {
+                foreach ($tables as $table) {
+                    DB::table($table)->delete();
+                }
+
+                if (Schema::hasTable('sqlite_sequence')) {
+                    DB::table('sqlite_sequence')->whereIn('name', $tables)->delete();
+                }
+            } finally {
+                DB::statement('PRAGMA foreign_keys = ON;');
+            }
+
+            return;
+        }
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+            try {
+                foreach ($tables as $table) {
+                    DB::table($table)->truncate();
+                }
+            } finally {
+                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            }
+
+            return;
+        }
+
+        Schema::disableForeignKeyConstraints();
+
+        try {
+            foreach ($tables as $table) {
+                DB::table($table)->delete();
+            }
+        } finally {
+            Schema::enableForeignKeyConstraints();
+        }
+    }
     /**
      * POST /admin/data-reset
      * Validates password, then truncates selected table groups.
@@ -207,22 +281,9 @@ class DataResetController extends Controller
             $summary[$table] = DB::table($table)->count();
         }
 
-        // Execute deletion inside a transaction
         try {
-            DB::transaction(function () use ($allTables): void {
-                // Disable FK checks temporarily for clean truncation
-                DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-                foreach ($allTables as $table) {
-                    DB::table($table)->truncate();
-                }
-
-                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            });
+            $this->truncateTables($allTables);
         } catch (\Throwable $e) {
-            // Make sure FK checks are re-enabled even on failure
-            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-
             Log::error('Data reset failed', [
                 'user_id' => $user->id,
                 'groups' => $selectedKeys,

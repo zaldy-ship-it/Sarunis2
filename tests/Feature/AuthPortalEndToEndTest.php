@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\AttendanceStatus;
+use App\Models\AppSetting;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\TeachingAssignment;
@@ -285,6 +286,56 @@ class AuthPortalEndToEndTest extends TestCase
             ->assertJsonCount(3, 'data');
     }
 
+    public function test_admin_can_reset_selected_data_group(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $this->postJson('/api/v1/admin/data-reset', [
+            'password' => 'password',
+            'confirmation_text' => 'HAPUS DATA',
+            'groups' => ['pengumuman'],
+        ])->assertOk()
+            ->assertJsonStructure(['message', 'summary', 'total_deleted']);
+    }
+    public function test_attendance_test_mode_allows_subject_attendance_outside_schedule_day(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/guru-mapel', 'guru.mapel@sarunis.test');
+
+        $assignment = TeachingAssignment::query()
+            ->whereHas('teacher.user', fn ($query) => $query->where('email', 'guru.mapel@sarunis.test'))
+            ->firstOrFail();
+
+        $badDate = collect(['2026-03-16', '2026-03-17', '2026-03-18', '2026-03-19', '2026-03-20', '2026-03-21'])
+            ->first(fn (string $date): bool => ((int) \Carbon\CarbonImmutable::parse($date)->dayOfWeekIso - 1) !== (int) $assignment->day_of_week);
+
+        $students = Student::query()
+            ->where('school_class_id', $assignment->school_class_id)
+            ->orderBy('id')
+            ->take(1)
+            ->get();
+
+        $payload = [
+            'teaching_assignment_id' => $assignment->id,
+            'attendance_date' => $badDate,
+            'attendances' => [
+                ['student_id' => $students[0]->id, 'status' => AttendanceStatus::HADIR->value],
+            ],
+        ];
+
+        AppSetting::query()->updateOrCreate(
+            ['key' => 'attendance_test_mode'],
+            ['label' => 'Mode Test Absensi', 'value' => '0', 'type' => 'boolean', 'description' => 'Mode test absensi.'],
+        );
+
+        $this->postJson('/api/v1/guru-mapel/absensi-mapel', $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('attendance_date');
+
+        AppSetting::query()->where('key', 'attendance_test_mode')->update(['value' => '1']);
+
+        $this->postJson('/api/v1/guru-mapel/absensi-mapel', $payload)
+            ->assertOk();
+    }
     public function test_walikelas_can_login_view_students_and_record_class_attendance(): void
     {
         $this->loginByPath('/api/v1/auth/login/walikelas', 'walikelas@sarunis.test');

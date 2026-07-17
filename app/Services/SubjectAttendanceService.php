@@ -235,6 +235,10 @@ class SubjectAttendanceService
 
     protected function ensureAssignmentMatchesDate(TeachingAssignment $teachingAssignment, string $attendanceDate): void
     {
+        if ($this->appSettingService->boolean('attendance_test_mode')) {
+            return;
+        }
+
         $date = CarbonImmutable::parse($attendanceDate);
         $scheduleDay = $this->scheduleDayFromIso($date->dayOfWeekIso);
 

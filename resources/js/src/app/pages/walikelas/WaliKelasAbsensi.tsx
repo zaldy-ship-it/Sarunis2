@@ -71,6 +71,7 @@ export const WaliKelasAbsensi = ({
     const [attendances, setAttendances] = useState<Record<number, AttendanceRecord>>({});
     const [mobileStep, setMobileStep] = useState<'pertemuan' | 'absen'>('pertemuan');
     const [query, setQuery] = useState('');
+    const [attendanceTestMode, setAttendanceTestMode] = useState(false);
     
     const [loadingClasses, setLoadingClasses] = useState(true);
     const [loadingMeetings, setLoadingMeetings] = useState(false);
@@ -83,8 +84,8 @@ export const WaliKelasAbsensi = ({
         return getMeetingStatus(selectedMeeting.date);
     }, [selectedMeeting]);
 
-    const isReadOnly = meetingStatus === 'sudah berlangsung';
-    const isNotStarted = meetingStatus === 'belum berlangsung';
+    const isReadOnly = !attendanceTestMode && meetingStatus === 'sudah berlangsung';
+    const isNotStarted = !attendanceTestMode && meetingStatus === 'belum berlangsung';
 
     const selectedSummary = useMemo(() => {
         const values = Object.values(attendances);
@@ -104,7 +105,17 @@ export const WaliKelasAbsensi = ({
 
     useEffect(() => {
         fetchClasses();
+        fetchAttendanceTestMode();
     }, []);
+
+    const fetchAttendanceTestMode = async () => {
+        try {
+            const response = await api.get('/attendance-test-mode');
+            setAttendanceTestMode(Boolean(response.data.enabled));
+        } catch {
+            setAttendanceTestMode(false);
+        }
+    };
 
     const fetchClasses = async () => {
         setLoadError('');
@@ -393,6 +404,13 @@ export const WaliKelasAbsensi = ({
                     </button>
 
                     {/* Status banners */}
+                    {attendanceTestMode && (
+                        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700 font-medium shadow-sm">
+                            <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
+                            <span>Mode test aktif. Absensi dapat diisi tanpa mengikuti waktu jadwal.</span>
+                        </div>
+                    )}
+
                     {isReadOnly && (
                         <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-700 font-medium shadow-sm">
                             <AlertCircle className="h-5 w-5 shrink-0 text-blue-600" />

@@ -93,6 +93,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/profile', [ProfileController::class, 'show']);
         Route::put('/profile', [ProfileController::class, 'update']);
+        Route::get('/attendance-test-mode', function () {
+            $settings = app(\App\Services\AppSettingService::class);
+            $settings->ensureDefaults();
+
+            return ['enabled' => filter_var($settings->value('attendance_test_mode', '0'), FILTER_VALIDATE_BOOLEAN)];
+        });
         Route::get('kelas/{schoolClass}/pertemuan', [SchoolClassController::class, 'meetings']);
     });
 
