@@ -5,6 +5,8 @@ import { AuthLayout } from '../layouts/AuthLayout';
 import { MainLayout } from '../layouts/MainLayout';
 import { Login } from '../pages/auth/Login';
 import { AdminDashboard } from '../pages/dashboard/AdminDashboard';
+import { TeacherDashboard } from '../pages/dashboard/TeacherDashboard';
+import { HomeroomDashboard } from '../pages/dashboard/HomeroomDashboard';
 import { JadwalKelas } from '../pages/akademik/JadwalKelas';
 import { PengaturanAkademik } from '../pages/akademik/PengaturanAkademik';
 import { Siswa } from '../pages/master/Siswa';
@@ -96,7 +98,7 @@ const router = createBrowserRouter([
             { path: '/pengaturan/audit', element: <Placeholder title="Audit Log" /> },
 
             // --- GURU MAPEL ROUTES ---
-            { path: '/guru-mapel/dashboard', element: <Placeholder title="Dashboard Guru" /> },
+            { path: '/guru-mapel/dashboard', element: <TeacherDashboard /> },
             { path: '/guru-mapel/jadwal', element: <GuruMapelJadwal /> },
             { path: '/guru-mapel/kalender', element: <Placeholder title="Kalender Akademik" /> },
             { path: '/guru-mapel/absensi/data-kelas', element: <ClassStudents pageTitle="Data Kelas" pageDescription="Lihat seluruh siswa pada kelas perwalian yang diampu." /> },
@@ -108,7 +110,7 @@ const router = createBrowserRouter([
             { path: '/guru-mapel/profil', element: <Placeholder title="Profil Saya" /> },
  
             // --- WALI KELAS ROUTES ---
-            { path: '/walikelas/dashboard', element: <Placeholder title="Dashboard Wali Kelas" /> },
+            { path: '/walikelas/dashboard', element: <HomeroomDashboard /> },
             { path: '/walikelas/absensi/data-kelas', element: <ClassStudents pageTitle="Data Kelas Perwalian" pageDescription="Lihat seluruh siswa pada kelas yang menjadi tanggung jawab wali kelas." /> },
             { path: '/walikelas/absensi/input', element: <WaliKelasAbsensi /> },
             { path: '/walikelas/absensi/riwayat', element: <ClassAttendanceRecap mode="history" /> },

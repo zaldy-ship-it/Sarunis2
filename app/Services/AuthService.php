@@ -116,7 +116,7 @@ class AuthService
 
     public function login(Request $request, array $credentials, bool $remember = false, ?string $portal = null): array
     {
-        if (! Auth::attempt($credentials, $remember)) {
+        if (! Auth::guard('web')->attempt($credentials, $remember)) {
             throw ValidationException::withMessages([
                 'email' => ['Email atau password tidak valid.'],
             ]);

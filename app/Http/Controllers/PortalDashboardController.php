@@ -58,7 +58,7 @@ class PortalDashboardController extends Controller
         ];
 
         if ($request->expectsJson()) {
-            return response()->json($payload);
+            return response()->json(array_merge($payload, $this->buildAdminDashboard($request, $payload)));
         }
 
         return view('dashboard.portal', $this->buildAdminDashboard($request, $payload));
@@ -1070,7 +1070,7 @@ class PortalDashboardController extends Controller
         ];
 
         if ($request->expectsJson()) {
-            return response()->json($payload);
+            return response()->json(array_merge($payload, $this->buildTeacherDashboard($request, $payload)));
         }
 
         return view('dashboard.portal', $this->buildTeacherDashboard($request, $payload));
@@ -1350,7 +1350,7 @@ class PortalDashboardController extends Controller
         ];
 
         if ($request->expectsJson()) {
-            return response()->json($payload);
+            return response()->json(array_merge($payload, $this->buildHomeroomDashboard($request, $payload)));
         }
 
         return view('dashboard.portal', $this->buildHomeroomDashboard($request, $payload));
@@ -1423,7 +1423,7 @@ class PortalDashboardController extends Controller
         ];
 
         if ($request->expectsJson()) {
-            return response()->json($payload);
+            return response()->json(array_merge($payload, $this->buildParentDashboard($request, $payload)));
         }
 
         return view('dashboard.portal', $this->buildParentDashboard($request, $payload));
@@ -1440,7 +1440,7 @@ class PortalDashboardController extends Controller
         ];
 
         if ($request->expectsJson()) {
-            return response()->json($payload);
+            return response()->json(array_merge($payload, $this->buildStudentDashboard($request, $payload)));
         }
 
         return view('dashboard.portal', $this->buildStudentDashboard($request, $payload));
@@ -2800,9 +2800,9 @@ class PortalDashboardController extends Controller
             'name' => $user->name,
             'role' => AuthService::portalMap()[$portalKey]['label'],
             'email' => $user->email,
-            'phone' => $profile->phone ?? 'Belum diisi',
-            'address' => $profile->address ?? 'Alamat belum dilengkapi',
-            'photo_url' => $profile->photo_url ?? null,
+            'phone' => $profile?->phone ?? 'Belum diisi',
+            'address' => $profile?->address ?? 'Alamat belum dilengkapi',
+            'photo_url' => $profile?->photo_url ?? null,
             'initials' => $initials !== '' ? $initials : 'US',
         ];
     }

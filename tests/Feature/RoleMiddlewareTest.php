@@ -14,7 +14,7 @@ class RoleMiddlewareTest extends TestCase
 
     public function test_guest_cannot_access_role_protected_routes(): void
     {
-        $this->get('/admin/dashboard')->assertStatus(401);
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(401);
     }
 
     public function test_admin_can_access_all_role_areas(): void
@@ -23,29 +23,35 @@ class RoleMiddlewareTest extends TestCase
 
         $this->actingAs($admin);
 
-        $this->getJson('/admin/dashboard')
+        $this->getJson('/api/v1/admin/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'admin sekolah');
 
-        $this->getJson('/guru-mapel/dashboard')->assertOk();
-        $this->getJson('/walikelas/dashboard')->assertOk();
-        $this->getJson('/orang-tua/dashboard')->assertOk();
-        $this->getJson('/siswa/dashboard')->assertOk();
+        $this->getJson('/api/v1/guru-mapel/dashboard')->assertOk();
+        $this->getJson('/api/v1/walikelas/dashboard')->assertOk();
+        $this->getJson('/api/v1/orang-tua/dashboard')->assertOk();
+        $this->getJson('/api/v1/siswa/dashboard')->assertOk();
     }
 
     public function test_guru_mapel_only_can_access_guru_mapel_area(): void
     {
         $guruMapel = User::factory()->guruMapel()->create();
+        Teacher::query()->create([
+            'user_id' => $guruMapel->id,
+            'nip' => 'TST-GM-003',
+            'name' => $guruMapel->name,
+            'is_subject_teacher' => true,
+        ]);
 
         $this->actingAs($guruMapel);
 
-        $this->getJson('/guru-mapel/dashboard')
+        $this->getJson('/api/v1/guru-mapel/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'guru mapel');
 
-        $this->getJson('/walikelas/dashboard')->assertStatus(403);
-        $this->getJson('/orang-tua/dashboard')->assertStatus(403);
-        $this->getJson('/admin/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/walikelas/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/orang-tua/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(403);
     }
 
     public function test_guru_mapel_without_homeroom_cannot_access_wali_kelas_area(): void
@@ -61,14 +67,14 @@ class RoleMiddlewareTest extends TestCase
 
         $this->actingAs($guruMapel);
 
-        $this->getJson('/guru-mapel/dashboard')
+        $this->getJson('/api/v1/guru-mapel/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'guru mapel');
 
         // Cannot access walikelas area without homeroom class assignment
-        $this->getJson('/walikelas/dashboard')->assertStatus(403);
-        $this->getJson('/orang-tua/dashboard')->assertStatus(403);
-        $this->getJson('/admin/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/walikelas/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/orang-tua/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(403);
     }
 
     public function test_guru_mapel_with_homeroom_assignment_can_access_wali_kelas_area(): void
@@ -93,33 +99,43 @@ class RoleMiddlewareTest extends TestCase
         $this->actingAs($guru);
 
         // Can access guru_mapel area
-        $this->getJson('/guru-mapel/dashboard')
+        $this->getJson('/api/v1/guru-mapel/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'guru mapel');
 
         // Can access walikelas area because assigned as homeroom teacher
-        $this->getJson('/walikelas/dashboard')
+        $this->getJson('/api/v1/walikelas/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'walikelas');
 
-        $this->getJson('/orang-tua/dashboard')->assertStatus(403);
-        $this->getJson('/admin/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/orang-tua/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(403);
     }
 
     public function test_siswa_only_can_access_siswa_area(): void
     {
         $siswa = User::factory()->siswa()->create();
+        \App\Models\Student::query()->create([
+            'user_id' => $siswa->id,
+            'nik' => '88888',
+            'nisn' => '8888888888',
+            'name' => $siswa->name,
+            'gender' => 'L',
+            'birth_date' => '2010-01-01',
+            'phone' => '081234567890',
+            'address' => 'Jl. Test No. 2',
+        ]);
 
         $this->actingAs($siswa);
 
-        $this->getJson('/siswa/dashboard')
+        $this->getJson('/api/v1/siswa/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'siswa');
 
-        $this->getJson('/guru-mapel/dashboard')->assertStatus(403);
-        $this->getJson('/walikelas/dashboard')->assertStatus(403);
-        $this->getJson('/orang-tua/dashboard')->assertStatus(403);
-        $this->getJson('/admin/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/guru-mapel/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/walikelas/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/orang-tua/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(403);
     }
 
     public function test_orang_tua_only_can_access_orang_tua_area(): void
@@ -138,13 +154,13 @@ class RoleMiddlewareTest extends TestCase
 
         $this->actingAs($orangTua);
 
-        $this->getJson('/orang-tua/dashboard')
+        $this->getJson('/api/v1/orang-tua/dashboard')
             ->assertOk()
             ->assertJsonPath('area', 'orang tua');
 
-        $this->getJson('/guru-mapel/dashboard')->assertStatus(403);
-        $this->getJson('/walikelas/dashboard')->assertStatus(403);
-        $this->getJson('/siswa/dashboard')->assertStatus(403);
-        $this->getJson('/admin/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/guru-mapel/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/walikelas/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/siswa/dashboard')->assertStatus(403);
+        $this->getJson('/api/v1/admin/dashboard')->assertStatus(403);
     }
 }
