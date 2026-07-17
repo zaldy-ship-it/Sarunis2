@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Key, BookOpen, GraduationCap, Building2, Calendar, UserCheck, Shield, HelpCircle, Save, Loader2 } from 'lucide-react';
+import { User, Phone, MapPin, Key, BookOpen, GraduationCap, Building2, Calendar, UserCheck, Shield, HelpCircle, Save, Loader2, Home } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'sonner';
 import { cn } from '../../components/ui/utils';

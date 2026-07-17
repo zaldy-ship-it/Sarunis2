@@ -239,7 +239,7 @@ class AuthService
 
     public function defaultPortal(User $user): ?string
     {
-        foreach (['admin', 'wakasek-kesiswaan', 'guru-piket', 'orang-tua', 'guru-mapel', 'walikelas', 'siswa'] as $portal) {
+        foreach (['admin', 'wakasek-kesiswaan', 'guru-piket', 'orang-tua', 'walikelas', 'guru-mapel', 'siswa'] as $portal) {
             if ($this->canAccessPortal($user, $portal)) {
                 return $portal;
             }

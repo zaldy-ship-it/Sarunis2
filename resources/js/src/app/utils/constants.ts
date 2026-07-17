@@ -164,10 +164,6 @@ export const TEACHER_NAV_GROUPS: NavGroup[] = [
 
 const INHERITED_WALIKELAS_TEACHER_GROUPS: NavGroup[] = TEACHER_NAV_GROUPS
     .filter(g => g.group !== "Utama")
-    .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => item.id !== "teacher-absensi"),
-    }))
     .filter((group) => group.items.length > 0);
 
 export const WALIKELAS_NAV_GROUPS: NavGroup[] = [
@@ -268,7 +264,12 @@ const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities
 export const getNavGroups = (portal?: string, capabilities?: NavCapabilities): NavGroup[] => {
     const applyCapabilityFilter = (groups: NavGroup[]) => filterByCapabilities(groups, capabilities);
 
-    switch (portal) {
+    let effectivePortal = portal;
+    if (portal === 'guru-mapel' && capabilities?.hasHomeroomClass) {
+        effectivePortal = 'walikelas';
+    }
+
+    switch (effectivePortal) {
         case 'walikelas':
             return applyCapabilityFilter(WALIKELAS_NAV_GROUPS);
         case 'guru-mapel':

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, BarChart3, BookOpen, CalendarDays, FileText, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, BarChart3, BookOpen, CalendarDays, FileText, RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 
@@ -47,6 +47,7 @@ interface AttendanceRecord {
     notes?: string | null;
     teaching_assignment?: TeachingAssignment;
     school_class?: SchoolClass;
+    recorded_by_teacher?: Teacher;
 }
 
 interface StudentNote {
@@ -166,6 +167,8 @@ const SummaryCards = ({ records }: { records: AttendanceRecord[] }) => {
 export const StudentSchedule = ({ portal = 'siswa' }: { portal?: 'siswa' | 'orang-tua' }) => {
     const [schedules, setSchedules] = useState<TeachingAssignment[]>([]);
     const [loading, setLoading] = useState(true);
+    // Hari ini terbuka otomatis: JS getDay() (Minggu=0..Sabtu=6) -> index DAY_NAMES (Senin=0..Minggu=6)
+    const [openDay, setOpenDay] = useState<string>(DAY_NAMES[(new Date().getDay() + 6) % 7]);
     const { children, selectedStudentId, setSelectedStudentId } = useParentChildren(portal);
 
     const fetchSchedules = async () => {
@@ -223,26 +226,44 @@ export const StudentSchedule = ({ portal = 'siswa' }: { portal?: 'siswa' | 'oran
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {groupedSchedules.map((group) => (
-                            <section key={group.day} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                                    <h2 className="font-semibold text-slate-900">{group.day}</h2>
-                                </div>
-                                <div className="divide-y divide-slate-100">
-                                    {group.items.map((schedule) => (
-                                        <div key={schedule.id} className="grid gap-3 p-4 md:grid-cols-[140px_minmax(0,1fr)_180px_120px] md:items-center">
-                                            <div className="text-sm font-semibold text-blue-700">{timeLabel(schedule.start_time)} - {timeLabel(schedule.end_time)}</div>
-                                            <div>
-                                                <p className="font-semibold text-slate-900">{schedule.subject?.name || '-'}</p>
-                                                <p className="mt-0.5 text-xs text-slate-500">{schedule.subject?.code || 'Mata pelajaran'}</p>
-                                            </div>
-                                            <div className="text-sm text-slate-600">{schedule.teacher?.name || '-'}</div>
-                                            <div className="text-sm text-slate-500">{schedule.room || '-'}</div>
+                        {groupedSchedules.map((group) => {
+                            const isOpen = openDay === group.day;
+                            return (
+                                <section key={group.day} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenDay((prev) => (prev === group.day ? '' : group.day))}
+                                        aria-expanded={isOpen}
+                                        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-100 ${isOpen ? 'bg-slate-50' : 'bg-white'}`}
+                                    >
+                                        <div>
+                                            <h2 className="font-semibold text-slate-900">{group.day}</h2>
+                                            <p className="mt-0.5 text-xs text-slate-500">{group.items.length} mata pelajaran</p>
                                         </div>
-                                    ))}
-                                </div>
-                            </section>
-                        ))}
+                                        {isOpen ? (
+                                            <ChevronUp className="h-5 w-5 shrink-0 text-slate-500" />
+                                        ) : (
+                                            <ChevronDown className="h-5 w-5 shrink-0 text-slate-500" />
+                                        )}
+                                    </button>
+                                    {isOpen && (
+                                        <div className="divide-y divide-slate-100 border-t border-slate-200">
+                                            {group.items.map((schedule) => (
+                                                <div key={schedule.id} className="grid gap-3 p-4 md:grid-cols-[140px_minmax(0,1fr)_180px_120px] md:items-center">
+                                                    <div className="text-sm font-semibold text-blue-700">{timeLabel(schedule.start_time)} - {timeLabel(schedule.end_time)}</div>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-900">{schedule.subject?.name || '-'}</p>
+                                                        <p className="mt-0.5 text-xs text-slate-500">{schedule.subject?.code || 'Mata pelajaran'}</p>
+                                                    </div>
+                                                    <div className="text-sm text-slate-600">{schedule.teacher?.name || '-'}</div>
+                                                    <div className="text-sm text-slate-500">{schedule.room || '-'}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </section>
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -254,6 +275,7 @@ export const StudentSubjectAttendance = ({ portal = 'siswa' }: { portal?: 'siswa
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [expanded, setExpanded] = useState<Record<number, boolean>>({});
     const { children, selectedStudentId, setSelectedStudentId } = useParentChildren(portal);
 
     const fetchRecords = async () => {
@@ -287,22 +309,65 @@ export const StudentSubjectAttendance = ({ portal = 'siswa' }: { portal?: 'siswa
     }, [records, query]);
 
     const subjectGroups = useMemo(() => {
-        const groups = new Map<number, AttendanceRecord[]>();
+        const groups = new Map<number, {
+            key: number;
+            subjectName: string;
+            subjectCode: string;
+            teacherName: string;
+            hadir: number;
+            sakit: number;
+            izin: number;
+            alpha: number;
+            total: number;
+            percentage: number;
+            records: AttendanceRecord[];
+        }>();
+
         filteredRecords.forEach((record) => {
             const key = record.teaching_assignment?.id || 0;
-            groups.set(key, [...(groups.get(key) || []), record]);
+            const subjectName = record.teaching_assignment?.subject?.name || 'Mata Pelajaran';
+            const subjectCode = record.teaching_assignment?.subject?.code || '-';
+            const teacherName = record.teaching_assignment?.teacher?.name || '-';
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    subjectName,
+                    subjectCode,
+                    teacherName,
+                    hadir: 0,
+                    sakit: 0,
+                    izin: 0,
+                    alpha: 0,
+                    total: 0,
+                    percentage: 0,
+                    records: [],
+                });
+            }
+
+            const g = groups.get(key)!;
+            g.records.push(record);
+            g.total += 1;
+
+            if (record.status === 'hadir') g.hadir += 1;
+            else if (record.status === 'sakit') g.sakit += 1;
+            else if (record.status === 'izin') g.izin += 1;
+            else if (record.status === 'alpha') g.alpha += 1;
         });
 
-        return Array.from(groups.values()).map((items) => {
-            const first = items[0];
-            return {
-                key: first.teaching_assignment?.id || first.id,
-                subject: first.teaching_assignment?.subject?.name || 'Mata Pelajaran',
-                teacher: first.teaching_assignment?.teacher?.name || '-',
-                records: items,
-            };
+        return Array.from(groups.values()).map((g) => {
+            g.percentage = g.total > 0 ? Math.round((g.hadir / g.total) * 100) : 0;
+            g.records.sort((a, b) => b.attendance_date.localeCompare(a.attendance_date));
+            return g;
         });
     }, [filteredRecords]);
+
+    const toggleExpand = (key: number) => {
+        setExpanded((prev) => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
+    };
 
     return (
         <AttendanceListPage
@@ -319,15 +384,85 @@ export const StudentSubjectAttendance = ({ portal = 'siswa' }: { portal?: 'siswa
             selectedStudentId={selectedStudentId}
             setSelectedStudentId={setSelectedStudentId}
         >
-            {subjectGroups.map((group) => (
-                <section key={group.key} className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                    <div className="flex flex-col gap-1 border-b border-slate-200 p-4">
-                        <h2 className="font-semibold text-slate-900">{group.subject}</h2>
-                        <p className="text-xs text-slate-500">Guru: {group.teacher} - {group.records.length} pertemuan tercatat</p>
-                    </div>
-                    <RecordRows records={group.records} />
-                </section>
-            ))}
+            <div className="space-y-4">
+                {subjectGroups.map((group) => {
+                    const isExpanded = !!expanded[group.key];
+                    const percentColor = group.percentage >= 85
+                        ? 'bg-emerald-500'
+                        : group.percentage >= 75
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500';
+
+                    return (
+                        <section key={group.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
+                            {/* Subject Header / Summary Card */}
+                            <div
+                                onClick={() => toggleExpand(group.key)}
+                                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between cursor-pointer select-none bg-white hover:bg-slate-50/50 transition-colors"
+                            >
+                                <div className="space-y-1 min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="font-bold text-slate-800 text-base">{group.subjectName}</h2>
+                                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 border border-slate-200">
+                                            {group.subjectCode}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 font-medium">Guru Pengampu: {group.teacherName}</p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-4">
+                                    {/* Stats grid */}
+                                    <div className="flex items-center gap-1.5 text-center">
+                                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-emerald-600 uppercase">Hadir</p>
+                                            <p className="text-xs font-bold text-emerald-700 mt-0.5">{group.hadir}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-100 bg-amber-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-amber-600 uppercase">Sakit</p>
+                                            <p className="text-xs font-bold text-amber-700 mt-0.5">{group.sakit}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-blue-600 uppercase">Izin</p>
+                                            <p className="text-xs font-bold text-blue-700 mt-0.5">{group.izin}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-rose-100 bg-rose-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-rose-600 uppercase">Alpha</p>
+                                            <p className="text-xs font-bold text-rose-700 mt-0.5">{group.alpha}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Percentage Gauge */}
+                                    <div className="flex items-center gap-2.5 pl-2 sm:border-l sm:border-slate-100">
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Kehadiran</p>
+                                            <p className="text-base font-extrabold text-slate-800">{group.percentage}%</p>
+                                        </div>
+                                        <div className="w-1.5 h-8 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className={`w-full rounded-full transition-all duration-300 ${percentColor}`} style={{ height: `${group.percentage}%` }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Chevron icon */}
+                                    <div className="text-slate-400 group-hover:text-slate-600 transition-colors ml-1">
+                                        {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Meeting list detail dropdown */}
+                            {isExpanded && (
+                                <div className="border-t border-slate-100 bg-slate-50/30">
+                                    <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        <span>Tanggal Pertemuan</span>
+                                        <span>Status Kehadiran</span>
+                                    </div>
+                                    <RecordRows records={group.records} />
+                                </div>
+                            )}
+                        </section>
+                    );
+                })}
+            </div>
         </AttendanceListPage>
     );
 };
@@ -336,6 +471,7 @@ export const StudentClassAttendance = ({ portal = 'siswa' }: { portal?: 'siswa' 
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [expanded, setExpanded] = useState<Record<number, boolean>>({});
     const { children, selectedStudentId, setSelectedStudentId } = useParentChildren(portal);
 
     const fetchRecords = async () => {
@@ -368,6 +504,64 @@ export const StudentClassAttendance = ({ portal = 'siswa' }: { portal?: 'siswa' 
         ].some((value) => value.toLowerCase().includes(keyword)));
     }, [records, query]);
 
+    const classGroups = useMemo(() => {
+        const groups = new Map<number, {
+            key: number;
+            className: string;
+            homeroomTeacher: string;
+            hadir: number;
+            sakit: number;
+            izin: number;
+            alpha: number;
+            total: number;
+            percentage: number;
+            records: AttendanceRecord[];
+        }>();
+
+        filteredRecords.forEach((record) => {
+            const key = record.school_class?.id || 0;
+            const className = record.school_class?.name || 'Kelas';
+            const teacherName = record.recorded_by_teacher?.name || '-';
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    className,
+                    homeroomTeacher: teacherName,
+                    hadir: 0,
+                    sakit: 0,
+                    izin: 0,
+                    alpha: 0,
+                    total: 0,
+                    percentage: 0,
+                    records: [],
+                });
+            }
+
+            const g = groups.get(key)!;
+            g.records.push(record);
+            g.total += 1;
+
+            if (record.status === 'hadir') g.hadir += 1;
+            else if (record.status === 'sakit') g.sakit += 1;
+            else if (record.status === 'izin') g.izin += 1;
+            else if (record.status === 'alpha') g.alpha += 1;
+        });
+
+        return Array.from(groups.values()).map((g) => {
+            g.percentage = g.total > 0 ? Math.round((g.hadir / g.total) * 100) : 0;
+            g.records.sort((a, b) => b.attendance_date.localeCompare(a.attendance_date));
+            return g;
+        });
+    }, [filteredRecords]);
+
+    const toggleExpand = (key: number) => {
+        setExpanded((prev) => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
+    };
+
     return (
         <AttendanceListPage
             title="Absensi Kelas"
@@ -383,9 +577,82 @@ export const StudentClassAttendance = ({ portal = 'siswa' }: { portal?: 'siswa' 
             selectedStudentId={selectedStudentId}
             setSelectedStudentId={setSelectedStudentId}
         >
-            <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                <RecordRows records={filteredRecords} showClass />
-            </section>
+            <div className="space-y-4">
+                {classGroups.map((group) => {
+                    const isExpanded = !!expanded[group.key];
+                    const percentColor = group.percentage >= 85
+                        ? 'bg-emerald-500'
+                        : group.percentage >= 75
+                        ? 'bg-amber-500'
+                        : 'bg-rose-500';
+
+                    return (
+                        <section key={group.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
+                            {/* Class Header / Summary Card */}
+                            <div
+                                onClick={() => toggleExpand(group.key)}
+                                className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between cursor-pointer select-none bg-white hover:bg-slate-50/50 transition-colors"
+                            >
+                                <div className="space-y-1 min-w-0 flex-1">
+                                    <h2 className="font-bold text-slate-800 text-base">{group.className}</h2>
+                                    {group.homeroomTeacher !== '-' && (
+                                        <p className="text-xs text-slate-500 font-medium">Dicatat Oleh / Wali Kelas: {group.homeroomTeacher}</p>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-4">
+                                    {/* Stats grid */}
+                                    <div className="flex items-center gap-1.5 text-center">
+                                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-emerald-600 uppercase">Hadir</p>
+                                            <p className="text-xs font-bold text-emerald-700 mt-0.5">{group.hadir}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-amber-100 bg-amber-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-amber-600 uppercase">Sakit</p>
+                                            <p className="text-xs font-bold text-amber-700 mt-0.5">{group.sakit}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-blue-600 uppercase">Izin</p>
+                                            <p className="text-xs font-bold text-blue-700 mt-0.5">{group.izin}</p>
+                                        </div>
+                                        <div className="rounded-lg border border-rose-100 bg-rose-50/50 px-2.5 py-1 min-w-[45px]">
+                                            <p className="text-[9px] font-bold text-rose-600 uppercase">Alpha</p>
+                                            <p className="text-xs font-bold text-rose-700 mt-0.5">{group.alpha}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Percentage Gauge */}
+                                    <div className="flex items-center gap-2.5 pl-2 sm:border-l sm:border-slate-100">
+                                        <div className="text-right">
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Kehadiran</p>
+                                            <p className="text-base font-extrabold text-slate-800">{group.percentage}%</p>
+                                        </div>
+                                        <div className="w-1.5 h-8 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className={`w-full rounded-full transition-all duration-300 ${percentColor}`} style={{ height: `${group.percentage}%` }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Chevron icon */}
+                                    <div className="text-slate-400 group-hover:text-slate-600 transition-colors ml-1">
+                                        {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Meeting list detail dropdown */}
+                            {isExpanded && (
+                                <div className="border-t border-slate-100 bg-slate-50/30">
+                                    <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        <span>Tanggal Pertemuan</span>
+                                        <span>Status Kehadiran</span>
+                                    </div>
+                                    <RecordRows records={group.records} showClass={false} />
+                                </div>
+                            )}
+                        </section>
+                    );
+                })}
+            </div>
         </AttendanceListPage>
     );
 };

@@ -57,7 +57,7 @@ class AuthPortalEndToEndTest extends TestCase
     {
         $accounts = [
             'admin@sarunis.test' => ['admin', '/admin/dashboard'],
-            'guru.mapel@sarunis.test' => ['guru-mapel', '/guru-mapel/dashboard'],
+            'guru.mapel@sarunis.test' => ['walikelas', '/walikelas/dashboard'],
             'walikelas@sarunis.test' => ['walikelas', '/walikelas/dashboard'],
             'orangtua@sarunis.test' => ['orang-tua', '/orang-tua/dashboard'],
             'siswa@sarunis.test' => ['siswa', '/siswa/dashboard'],
