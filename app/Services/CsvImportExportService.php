@@ -375,11 +375,6 @@ class CsvImportExportService
 
             // Resolve Teacher
             $teacher = Teacher::query()->where('nip', $teacherNip)->first();
-            // Resolve Subject
-            $subject = Subject::query()
-                ->where('code', $subjectInput)
-                ->orWhere('name', $subjectInput)
-                ->first();
             // Resolve class name now; create the class only after the row passes validation.
 
             // Resolve Day
@@ -389,7 +384,7 @@ class CsvImportExportService
             $payload = [
                 'academic_year' => $academicYear,
                 'teacher_id' => $teacher?->id,
-                'subject_id' => $subject?->id,
+                'subject_input' => $subjectInput,
                 'class_name' => $className,
                 'day_of_week' => $dayOfWeek,
                 'start_time' => $row['jam_mulai'] ?? null,
@@ -400,7 +395,7 @@ class CsvImportExportService
             $validator = Validator::make($payload, [
                 'academic_year' => ['required', 'string'],
                 'teacher_id' => ['required', 'integer', 'exists:teachers,id'],
-                'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+                'subject_input' => ['required', 'string', 'min:2', 'max:255'],
                 'class_name' => ['required', 'string', 'min:2', 'max:100'],
                 'day_of_week' => ['required', 'integer', 'min:0', 'max:6'],
                 'start_time' => ['required', 'date_format:H:i'],
@@ -409,8 +404,8 @@ class CsvImportExportService
             ], [
                 'teacher_id.required' => 'NIP Guru tidak valid atau tidak terdaftar.',
                 'teacher_id.exists' => "NIP Guru '{$teacherNip}' tidak terdaftar dalam sistem.",
-                'subject_id.required' => 'Kode/Nama Mapel tidak valid atau tidak terdaftar.',
-                'subject_id.exists' => "Mapel '{$subjectInput}' tidak ditemukan dalam sistem.",
+                'subject_input.required' => 'Kode/Nama Mapel wajib diisi.',
+                'subject_input.min' => 'Kode/Nama Mapel minimal 2 karakter.',
                 'class_name.required' => 'Nama Kelas wajib diisi.',
                 'day_of_week.required' => 'Hari tidak valid. Gunakan nama hari (Senin-Minggu) atau angka (0-6).',
                 'start_time.required' => 'Jam mulai wajib diisi (format HH:MM).',
@@ -419,6 +414,10 @@ class CsvImportExportService
             ]);
 
             $validator->validate();
+
+            $subject = $this->resolveOrCreateScheduleSubject($subjectInput);
+            $payload['subject_id'] = $subject->id;
+            unset($payload['subject_input']);
 
             $schoolClass = $this->resolveOrCreateScheduleClass($className, $academicYear);
             $payload['school_class_id'] = $schoolClass?->id;
@@ -451,14 +450,12 @@ class CsvImportExportService
                 ->where('start_time', '<', $payload['end_time'])
                 ->where('end_time', '>', $payload['start_time']);
 
-            if ($existing) {
-                // If existing, we can update it. Conflict checks should exclude this exact record.
-                $teacherConflict = $teacherConflict->where('id', '!=', $existing->id);
-                $classConflict = $classConflict->where('id', '!=', $existing->id);
-            }
-
             $dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
             $dayName = $dayNames[$payload['day_of_week']] ?? $payload['day_of_week'];
+
+            if ($existing) {
+                throw new \Exception("Jadwal sudah ada untuk kelas {$className} pada hari {$dayName} jam {$payload['start_time']}-{$payload['end_time']}. Baris ini dilewati.");
+            }
 
             $conflictingTeacher = $teacherConflict->with(['subject', 'schoolClass'])->first();
             if ($conflictingTeacher) {
@@ -478,11 +475,6 @@ class CsvImportExportService
                 throw new \Exception(
                     "TABRAKAN KELAS: Kelas {$className} sudah memiliki jadwal mapel \"{$conflictSubject}\" oleh {$conflictTeacher} pada hari {$dayName} jam {$conflictTime}. Tidak boleh ada 2 mapel di kelas yang sama pada waktu yang bertabrakan."
                 );
-            }
-
-            if ($existing) {
-                $this->teachingAssignmentService->update($existing, $payload);
-                return 'updated';
             }
 
             $this->teachingAssignmentService->create($payload);
@@ -701,6 +693,52 @@ class CsvImportExportService
         return null;
     }
 
+    protected function resolveOrCreateScheduleSubject(string $subjectInput): Subject
+    {
+        $subjectInput = trim($subjectInput);
+
+        $subject = Subject::query()
+            ->where('code', $subjectInput)
+            ->orWhere('name', $subjectInput)
+            ->first();
+
+        if ($subject !== null) {
+            return $subject;
+        }
+
+        return Subject::query()->create([
+            'code' => $this->scheduleSubjectCode($subjectInput),
+            'name' => $subjectInput,
+            'lesson_hours' => 2,
+            'description' => 'Dibuat otomatis dari import jadwal pelajaran.',
+        ]);
+    }
+
+    protected function scheduleSubjectCode(string $subjectInput): string
+    {
+        $base = str($subjectInput)
+            ->ascii()
+            ->upper()
+            ->replaceMatches('/[^A-Z0-9]+/', '-')
+            ->trim('-')
+            ->substr(0, 20)
+            ->toString();
+
+        if ($base === '') {
+            $base = 'MAPEL';
+        }
+
+        $code = $base;
+        $counter = 2;
+
+        while (Subject::query()->where('code', $code)->exists()) {
+            $suffix = '-' . $counter;
+            $code = substr($base, 0, 20 - strlen($suffix)) . $suffix;
+            $counter++;
+        }
+
+        return $code;
+    }
     protected function resolveOrCreateScheduleClass(string $className, string $academicYear): ?SchoolClass
     {
         $className = trim($className);

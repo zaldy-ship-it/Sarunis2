@@ -329,6 +329,44 @@ class AuthPortalEndToEndTest extends TestCase
         ]);
     }
 
+    public function test_schedule_import_creates_missing_subjects_and_skips_existing_rows(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $csv = implode("\n", [
+            'nip_guru,nama_mapel,nama_kelas,hari,jam_mulai,jam_selesai,ruangan',
+            '198801010001,Mapel Baru Import,X IPA 1,Minggu,16:15,17:15,R-Baru',
+            '198801010001,Mapel Baru Import,X IPA 1,Minggu,16:15,17:15,R-Duplikat',
+        ]);
+
+        $this->postJson('/api/v1/admin/import/jadwal', [
+            'file' => UploadedFile::fake()->createWithContent('jadwal-baru.csv', $csv),
+        ])->assertOk()
+            ->assertJsonPath('created', 1)
+            ->assertJsonPath('updated', 0)
+            ->assertJsonPath('failed', 1);
+
+        $subject = Subject::query()->where('name', 'Mapel Baru Import')->firstOrFail();
+        $classId = SchoolClass::query()->where('name', 'X IPA 1')->value('id');
+
+        $this->assertDatabaseHas('teaching_assignments', [
+            'subject_id' => $subject->id,
+            'school_class_id' => $classId,
+            'day_of_week' => 6,
+            'start_time' => '16:15',
+            'end_time' => '17:15',
+            'room' => 'R-Baru',
+        ]);
+    }
+    public function test_admin_can_fetch_unassigned_students_for_class_plotting(): void
+    {
+        $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');
+
+        $this->getJson('/api/v1/admin/siswa/tidak-ada-kelas')
+            ->assertOk()
+            ->assertJsonStructure(['data']);
+    }
+
     public function test_admin_can_access_non_admin_portal_features_without_teacher_or_student_profile(): void
     {
         $this->loginByPath('/api/v1/auth/login/admin', 'admin@sarunis.test');

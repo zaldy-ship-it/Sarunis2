@@ -129,6 +129,7 @@ Route::prefix('v1')->group(function () {
             ->whereIn('format', ['csv', 'xls', 'pdf']);
         Route::resource('pelanggaran', StudentViolationController::class)->except(['create', 'edit', 'show']);
 
+        Route::get('siswa/tidak-ada-kelas', [StudentController::class, 'unassigned']);
         Route::apiResource('siswa', StudentController::class)->parameters(['siswa' => 'student']);
         Route::apiResource('guru', TeacherController::class)->parameters(['guru' => 'teacher']);
         Route::apiResource('kelas', SchoolClassController::class)->parameters(['kelas' => 'schoolClass']);
@@ -144,7 +145,6 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('setting', AppSettingController::class)->parameters(['setting' => 'setting']);
         Route::apiResource('catatan', StudentNoteController::class)->parameters(['catatan' => 'catatanSiswa']);
         Route::put('kelas/{schoolClass}/ploting', [ClassPlottingController::class, 'update']);
-        Route::get('siswa/tidak-ada-kelas', [StudentController::class, 'unassigned']);
         Route::get('/pengumuman', [AnnouncementController::class, 'page']);
         Route::apiResource('announcements', AnnouncementController::class)->parameters(['announcements' => 'announcement'])->except(['create', 'edit']);
 
