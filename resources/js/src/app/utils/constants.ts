@@ -218,9 +218,6 @@ const filterByCapabilities = (groups: NavGroup[], capabilities?: NavCapabilities
         if (!subItems) return subItems;
 
         return subItems.filter((item) => {
-            if (item.id === 'teacher-absensi-rekap-mapel' && hasHomeroomClass) {
-                return false;
-            }
 
             if (teachingOnlySubItems.has(item.id)) {
                 return hasTeachingSchedule !== false;
@@ -277,3 +274,4 @@ export const getNavGroups = (portal?: string, capabilities?: NavCapabilities): N
             return ADMIN_NAV_GROUPS;
     }
 };
+

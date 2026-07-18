@@ -185,60 +185,33 @@ export const CombinedAttendanceRecap = () => {
         }
     }, [recapType, selectedClassId, selectedScheduleId, dateFrom, dateTo]);
 
-    const handleDownload = async (format: 'csv' | 'xls') => {
-        try {
-            toast.loading(`Mempersiapkan unduhan ${format.toUpperCase()}...`, { id: 'download-toast' });
-            
-            const params: Record<string, string> = {
-                date_from: dateFrom,
-                date_to: dateTo,
-            };
+    const handleDownload = (format: 'csv' | 'xls') => {
+        const params: Record<string, string> = {
+            date_from: dateFrom,
+            date_to: dateTo,
+        };
 
-            let url = '';
-            let filename = '';
+        let url = '';
+        let filename = '';
 
-            if (recapType === 'kelas') {
-                if (selectedClassId) params.school_class_id = selectedClassId;
-                url = `/walikelas/absensi/export/${format}`;
-                filename = `rekap-absensi-kelas-${dateFrom}-ke-${dateTo}.${format}`;
-            } else {
-                if (selectedScheduleId) params.teaching_assignment_id = selectedScheduleId;
-                url = `/guru-mapel/absensi/export/${format}`;
-                filename = `rekap-absensi-mapel-${dateFrom}-ke-${dateTo}.${format}`;
-            }
-
-            const response = await api.get(url, {
-                params,
-                responseType: 'blob'
-            });
-
-            const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(downloadUrl);
-
-            toast.success('Unduhan berhasil!', { id: 'download-toast' });
-        } catch (error: any) {
-            console.error('Download error:', error);
-            let message = error.response?.data?.message || 'Gagal mengunduh data absensi.';
-
-            if (error.response?.data instanceof Blob) {
-                try {
-                    const text = await error.response.data.text();
-                    const parsed = JSON.parse(text);
-                    message = parsed.message || message;
-                } catch {
-                    // Keep generic message when the server returns an HTML error page.
-                }
-            }
-
-            toast.error(message, { id: 'download-toast' });
+        if (recapType === 'kelas') {
+            if (selectedClassId) params.school_class_id = selectedClassId;
+            url = `/walikelas/absensi/export/${format}`;
+            filename = `rekap-absensi-kelas-${dateFrom}-ke-${dateTo}.${format}`;
+        } else {
+            if (selectedScheduleId) params.teaching_assignment_id = selectedScheduleId;
+            url = `/guru-mapel/absensi/export/${format}`;
+            filename = `rekap-absensi-mapel-${dateFrom}-ke-${dateTo}.${format}`;
         }
+
+        const link = document.createElement('a');
+        link.href = api.getUri({ url, params });
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        toast.success('Unduhan dimulai.', { id: 'download-toast' });
     };
 
     // Fetch records when tab or default filters load
