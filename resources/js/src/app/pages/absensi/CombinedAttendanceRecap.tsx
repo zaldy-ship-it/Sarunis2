@@ -91,6 +91,9 @@ const scheduleMeta = (schedule?: TeachingAssignment | null) => {
 };
 
 export const CombinedAttendanceRecap = () => {
+    const currentPath = window.location.pathname;
+    const isGuruMapelRoute = currentPath.includes('/guru-mapel/');
+    const isWalikelasRoute = currentPath.includes('/walikelas/');
     const [recapType, setRecapType] = useState<RecapType>('mapel');
     const [isWalikelas, setIsWalikelas] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -125,13 +128,17 @@ export const CombinedAttendanceRecap = () => {
                 
                 if (classData.length > 0) {
                     setIsWalikelas(true);
-                    setRecapType('kelas'); // Default to kelas if they are walikelas
                     setSelectedClassId(String(classData[0].id));
+                    if (!isGuruMapelRoute) {
+                        setRecapType('kelas');
+                    }
                 }
             } catch (err) {
                 // Not a walikelas or failed to load
                 setIsWalikelas(false);
-                setRecapType('mapel');
+                if (!isWalikelasRoute) {
+                    setRecapType('mapel');
+                }
             }
 
             try {
@@ -149,7 +156,7 @@ export const CombinedAttendanceRecap = () => {
         };
 
         checkRolesAndLoadOptions();
-    }, []);
+    }, [isGuruMapelRoute, isWalikelasRoute]);
 
     const fetchRecords = useCallback(async () => {
         setLoading(true);
@@ -571,3 +578,4 @@ export const CombinedAttendanceRecap = () => {
         </div>
     );
 };
+
