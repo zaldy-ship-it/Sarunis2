@@ -122,7 +122,7 @@ class CsvImportExportService
             $validator = Validator::make($payload, [
                 'school_class_id' => ['nullable', 'integer', Rule::exists('school_classes', 'id')],
                 'nik' => ['required', 'string', 'min:3', 'max:30', 'regex:/^[0-9A-Za-z]+$/', Rule::unique('students', 'nik')->ignore($student?->id)],
-                'nisn' => ['nullable', 'string', 'regex:/^[0-9]{10,20}$/', Rule::unique('students', 'nisn')->ignore($student?->id)],
+                'nisn' => ['nullable', 'string', 'regex:/^[0-9]{9,20}$/', Rule::unique('students', 'nisn')->ignore($student?->id)],
                 'name' => ['required', 'string', 'min:3', 'max:255'],
                 'gender' => ['nullable', Rule::in(['L', 'P'])],
                 'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
@@ -744,6 +744,8 @@ class CsvImportExportService
      */
     protected function importRows(UploadedFile $file, callable $callback): array
     {
+        $this->extendImportExecutionTime();
+
         $rows = $this->readCsv($file);
         abort_if($rows === [], 422, 'File import tidak memiliki baris data.');
 
@@ -770,6 +772,15 @@ class CsvImportExportService
         }
 
         return $summary;
+    }
+
+    protected function extendImportExecutionTime(): void
+    {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
+
+        @ini_set('max_execution_time', '300');
     }
 
     /**
@@ -1371,4 +1382,3 @@ class CsvImportExportService
         return implode('-', $parts);
     }
 }
-

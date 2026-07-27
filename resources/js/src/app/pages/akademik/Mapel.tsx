@@ -104,11 +104,12 @@ export const Mapel = () => {
     const fetchInitialData = async () => {
         setLoading(true);
         try {
+            const listParams = { per_page: 500 };
             const [assignRes, subjRes, teachRes, classRes] = await Promise.all([
-                api.get('/admin/jadwal-ajar'),
-                api.get('/admin/mapel'),
-                api.get('/admin/guru'),
-                api.get('/admin/kelas')
+                api.get('/admin/jadwal-ajar', { params: listParams }),
+                api.get('/admin/mapel', { params: listParams }),
+                api.get('/admin/guru', { params: listParams }),
+                api.get('/admin/kelas', { params: listParams })
             ]);
 
             setAssignments(assignRes.data.data || []);
