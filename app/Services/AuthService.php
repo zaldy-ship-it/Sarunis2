@@ -126,6 +126,8 @@ class AuthService
 
         /** @var User $user */
         $user = $request->user()->load(['teacherProfile', 'studentProfile']);
+        $this->syncStudentProfileRole($user);
+        $user->refresh()->load(['teacherProfile', 'studentProfile']);
 
         if ($portal === null && $this->defaultPortal($user) === null) {
             Auth::logout();
@@ -228,13 +230,26 @@ class AuthService
 
         if ($portal === 'guru-mapel') {
             return $user->hasRole(UserRole::GURU_MAPEL) &&
-                $user->teacherProfile !== null &&
-                $user->teacherProfile->hasSubjectRole();
+                $user->teacherProfile !== null;
         }
 
         return $portalConfig['requires_all']
             ? $user->hasAllRoles($portalConfig['roles'])
             : $user->hasAnyRole($portalConfig['roles']);
+    }
+
+    protected function syncStudentProfileRole(User $user): void
+    {
+        if ($user->studentProfile === null || $user->hasRole(UserRole::SISWA)) {
+            return;
+        }
+
+        $user->forceFill([
+            'roles' => array_values(array_unique([
+                ...($user->roles ?? []),
+                UserRole::SISWA->value,
+            ])),
+        ])->save();
     }
 
     public function defaultPortal(User $user): ?string
