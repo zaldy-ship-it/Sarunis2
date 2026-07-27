@@ -135,7 +135,7 @@ class AuthService
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            abort(403, 'Akun ini belum memiliki hak akses ke portal mana pun.');
+            abort(403, 'Akun '.$user->email.' belum memiliki hak akses ke portal mana pun.');
         }
 
         if ($portal !== null && ! $this->canAccessPortal($user, $portal)) {

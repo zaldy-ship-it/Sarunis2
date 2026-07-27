@@ -103,17 +103,13 @@ class AuthController extends Controller
         $compactedLogin = $this->compactLogin($normalizedLogin);
 
         $user = User::query()
-            ->get(['email', 'name'])
+            ->get(['email'])
             ->first(function (User $user) use ($normalizedLogin, $compactedLogin): bool {
                 $email = Str::lower($user->email);
                 $emailLocal = Str::before($email, '@');
-                $name = Str::lower($user->name);
 
-                return in_array($normalizedLogin, [$email, $emailLocal, $name], true)
-                    || in_array($compactedLogin, [
-                        $this->compactLogin($emailLocal),
-                        $this->compactLogin($name),
-                    ], true);
+                return in_array($normalizedLogin, [$email, $emailLocal], true)
+                    || $this->compactLogin($emailLocal) === $compactedLogin;
             });
 
         return [
