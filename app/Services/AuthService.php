@@ -127,6 +127,7 @@ class AuthService
         /** @var User $user */
         $user = $request->user()->load(['teacherProfile', 'studentProfile']);
         $this->syncStudentProfileRole($user);
+        $this->syncParentProfileRole($user);
         $user->refresh()->load(['teacherProfile', 'studentProfile']);
 
         if ($portal === null && $this->defaultPortal($user) === null) {
@@ -248,6 +249,20 @@ class AuthService
             'roles' => array_values(array_unique([
                 ...($user->roles ?? []),
                 UserRole::SISWA->value,
+            ])),
+        ])->save();
+    }
+
+    protected function syncParentProfileRole(User $user): void
+    {
+        if (! $user->parentStudents()->exists() || $user->hasRole(UserRole::ORANG_TUA)) {
+            return;
+        }
+
+        $user->forceFill([
+            'roles' => array_values(array_unique([
+                ...($user->roles ?? []),
+                UserRole::ORANG_TUA->value,
             ])),
         ])->save();
     }
